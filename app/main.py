@@ -12,6 +12,7 @@ from app.api.routes import (
     customers,
     health,
     services,
+    whatsapp,
     working_hours,
 )
 from app.core.config import settings
@@ -53,6 +54,7 @@ app.include_router(appointments.router, prefix="/api")
 app.include_router(customers.router, prefix="/api")
 app.include_router(services.router, prefix="/api")
 app.include_router(working_hours.router, prefix="/api")
+app.include_router(whatsapp.router, prefix="/api")
 
 
 @app.get("/")

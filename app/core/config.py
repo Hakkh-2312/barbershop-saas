@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     # WhatsApp (filled in during Milestone 2)
     whatsapp_verify_token: str | None = None
     whatsapp_access_token: str | None = None
+    whatsapp_phone_number_id: str | None = None
 
     @property
     def cors_allowed_origins_list(self) -> list[str]:
