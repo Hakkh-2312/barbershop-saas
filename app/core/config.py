@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     whatsapp_verify_token: str | None = None
     whatsapp_access_token: str | None = None
     whatsapp_phone_number_id: str | None = None
+    # Which tenant this WhatsApp Business number belongs to. There's no
+    # phone-number-to-tenant routing yet, so one WhatsApp number = one shop
+    # until multiple shops are actually onboarded onto WhatsApp.
+    whatsapp_tenant_id: int | None = None
 
     @property
     def cors_allowed_origins_list(self) -> list[str]:

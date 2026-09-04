@@ -141,17 +141,31 @@ already configured backend-side for `http://localhost:3000` by default.
 
 ## WhatsApp Cloud API webhook
 
-`POST /api/whatsapp/webhook` receives messages from a Meta WhatsApp Business
-number; `GET /api/whatsapp/webhook` handles Meta's one-time verification
-handshake when you configure the webhook. To set it up:
+A customer can message the shop's WhatsApp number and book entirely by
+tapping clickable options — no manual dashboard entry needed. The flow:
+message the shop → pick a service from a list → pick an open time slot
+from a list → booked. Their `Customer` record is created automatically
+from their WhatsApp number and profile name the first time they book.
+Reuses the exact same validation as the REST API (`app/services/booking.py`)
+so working hours, overlaps, and the double-booking exclusion constraint all
+apply identically.
+
+Not tenant-scoped yet — `WHATSAPP_TENANT_ID` says which single shop this
+WhatsApp number belongs to (there's no phone-number-to-tenant mapping until
+multiple real shops are on WhatsApp). Also not in scope yet: cancelling or
+rescheduling via WhatsApp (use the dashboard/API for that), and conversation
+state doesn't expire — an abandoned flow just continues from where it left
+off the next time that number messages in.
+
+To set it up:
 1. [developers.facebook.com/apps](https://developers.facebook.com/apps) → create an app → add the **WhatsApp** product.
 2. WhatsApp → API Setup gives you a test phone number, its **Phone Number ID**, and a temporary **access token**.
 3. WhatsApp → Configuration → Webhook: callback URL `https://<public-url>/api/whatsapp/webhook` (needs real HTTPS — use `ngrok http 8000` locally, or your Render URL once deployed), verify token = anything you choose.
-4. Put the verify token, access token, and phone number ID into `.env` as `WHATSAPP_VERIFY_TOKEN` / `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID`.
+4. Put the verify token, access token, phone number ID, and the id of the tenant this number belongs to into `.env` as `WHATSAPP_VERIFY_TOKEN` / `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` / `WHATSAPP_TENANT_ID`.
 
-This first version isn't tenant-scoped — it's one shop's WhatsApp number
-until multi-tenant WhatsApp routing is built (a phone-number-to-tenant
-mapping, not yet needed with one shop on it).
+If `WHATSAPP_TENANT_ID` is unset, incoming messages just get a static
+"coming soon" reply instead of the booking flow — safe default until you've
+set up a real shop to receive bookings.
 
 ## Configuration reference
 
@@ -159,7 +173,7 @@ Beyond `DATABASE_URL` and `JWT_SECRET_KEY`, see `.env.example` for:
 - `CORS_ALLOWED_ORIGINS` — comma-separated origins allowed to call this API (e.g. the dashboard's dev/prod URLs)
 - `DEBUG` — leave `true` locally; a deployment that leaves this unset defaults to `false` so stack traces never leak to clients
 - `SENTRY_DSN` — optional; once set, unhandled exceptions are reported to Sentry
-- `WHATSAPP_VERIFY_TOKEN` / `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` — see "WhatsApp Cloud API webhook" above
+- `WHATSAPP_VERIFY_TOKEN` / `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` / `WHATSAPP_TENANT_ID` — see "WhatsApp Cloud API webhook" above
 
 ## Set up GitHub
 

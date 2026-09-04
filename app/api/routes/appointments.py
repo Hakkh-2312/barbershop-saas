@@ -8,15 +8,25 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_tenant_id
 from app.db.session import get_db
 from app.models.appointment import Appointment
-from app.models.customer import Customer
 from app.models.service import Service
-from app.models.working_hours import WorkingHours
 from app.schemas.appointment import AppointmentCreate, AppointmentRead, AppointmentReschedule
+from app.services.booking import BookingError, check_slot_available, create_booking
 
 router = APIRouter(
     prefix="/appointments",
     tags=["appointments"],
 )
+
+_STATUS_BY_ERROR_CODE = {
+    "not_found": 404,
+    "closed": 422,
+    "outside_hours": 422,
+    "conflict": 409,
+}
+
+
+def _raise_for_booking_error(err: BookingError):
+    raise HTTPException(status_code=_STATUS_BY_ERROR_CODE[err.code], detail=err.message)
 
 
 def _get_appointment_or_404(db: Session, appointment_id: int, tenant_id: int) -> Appointment:
@@ -32,121 +42,22 @@ def _get_appointment_or_404(db: Session, appointment_id: int, tenant_id: int) ->
     return appointment
 
 
-def _check_slot_available(
-    db: Session,
-    tenant_id: int,
-    service: Service,
-    start_time: datetime,
-    exclude_appointment_id: int | None = None,
-) -> datetime:
-    """Validates a proposed slot against working hours and existing bookings.
-    Returns the computed end_time, or raises HTTPException. Shared by create
-    and reschedule so they can't drift apart on the business rules."""
-    end_time = start_time + timedelta(minutes=service.duration_minutes)
-
-    # Sunday = 0, Monday = 1, ..., Saturday = 6
-    day_of_week = (start_time.weekday() + 1) % 7
-
-    working_hours = (
-        db.query(WorkingHours)
-        .filter(
-            WorkingHours.tenant_id == tenant_id,
-            WorkingHours.day_of_week == day_of_week,
-        )
-        .first()
-    )
-
-    if not working_hours or working_hours.is_closed:
-        raise HTTPException(
-            status_code=422, detail="The barbershop is closed on this day"
-        )
-
-    if (
-        start_time.time() < working_hours.start_time
-        or end_time.time() > working_hours.end_time
-    ):
-        raise HTTPException(
-            status_code=422, detail="Appointment is outside working hours"
-        )
-
-    # Reject bookings that overlap an existing one for this tenant. This
-    # check and the insert/update below aren't atomic on their own — two
-    # concurrent requests for the same slot could both pass it before either
-    # commits — so it's paired with a DB-level exclusion constraint (see the
-    # Appointment model) that rejects the second write outright; the
-    # IntegrityError handling at each call site turns that into a clean 409
-    # instead of a 500.
-    conflict_query = db.query(Appointment).filter(
-        Appointment.tenant_id == tenant_id,
-        Appointment.status == "booked",
-        Appointment.start_time < end_time,
-        Appointment.end_time > start_time,
-    )
-
-    if exclude_appointment_id is not None:
-        conflict_query = conflict_query.filter(Appointment.id != exclude_appointment_id)
-
-    if conflict_query.first():
-        raise HTTPException(
-            status_code=409, detail="This time slot is no longer available"
-        )
-
-    return end_time
-
-
 @router.post("", response_model=AppointmentRead, status_code=201)
 def create_appointment(
     appointment: AppointmentCreate,
     db: Session = Depends(get_db),
     tenant_id: int = Depends(get_current_tenant_id),
 ):
-    customer = (
-        db.query(Customer)
-        .filter(
-            Customer.id == appointment.customer_id,
-            Customer.tenant_id == tenant_id,
-        )
-        .first()
-    )
-
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
-
-    service = (
-        db.query(Service)
-        .filter(
-            Service.id == appointment.service_id,
-            Service.tenant_id == tenant_id,
-        )
-        .first()
-    )
-
-    if not service:
-        raise HTTPException(status_code=404, detail="Service not found")
-
-    end_time = _check_slot_available(db, tenant_id, service, appointment.start_time)
-
-    new_appointment = Appointment(
-        tenant_id=tenant_id,
-        customer_id=customer.id,
-        service_id=service.id,
-        start_time=appointment.start_time,
-        end_time=end_time,
-        status="booked",
-    )
-
-    db.add(new_appointment)
     try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=409, detail="This time slot is no longer available"
+        return create_booking(
+            db,
+            tenant_id,
+            appointment.customer_id,
+            appointment.service_id,
+            appointment.start_time,
         )
-
-    db.refresh(new_appointment)
-
-    return new_appointment
+    except BookingError as err:
+        _raise_for_booking_error(err)
 
 
 @router.get("", response_model=list[AppointmentRead])
@@ -215,9 +126,12 @@ def reschedule_appointment(
 
     service = db.query(Service).filter(Service.id == appointment.service_id).first()
 
-    end_time = _check_slot_available(
-        db, tenant_id, service, payload.start_time, exclude_appointment_id=appointment.id
-    )
+    try:
+        end_time = check_slot_available(
+            db, tenant_id, service, payload.start_time, exclude_appointment_id=appointment.id
+        )
+    except BookingError as err:
+        _raise_for_booking_error(err)
 
     appointment.start_time = payload.start_time
     appointment.end_time = end_time
