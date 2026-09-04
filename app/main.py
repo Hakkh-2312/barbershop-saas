@@ -12,6 +12,7 @@ from app.api.routes import (
     customers,
     health,
     services,
+    tenants,
     whatsapp,
     working_hours,
 )
@@ -55,6 +56,7 @@ app.include_router(customers.router, prefix="/api")
 app.include_router(services.router, prefix="/api")
 app.include_router(working_hours.router, prefix="/api")
 app.include_router(whatsapp.router, prefix="/api")
+app.include_router(tenants.router, prefix="/api")
 
 
 @app.get("/")

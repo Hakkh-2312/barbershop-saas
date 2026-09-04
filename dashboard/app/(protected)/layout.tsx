@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { href: "/customers", label: "Customers" },
   { href: "/services", label: "Services" },
   { href: "/working-hours", label: "Working Hours" },
+  { href: "/settings", label: "Settings" },
 ];
 
 export default function ProtectedLayout({ children }: { children: ReactNode }) {

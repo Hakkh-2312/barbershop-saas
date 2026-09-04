@@ -181,3 +181,24 @@ def get_available_slots(
             current += step
 
     return slots
+
+
+def get_available_dates(
+    db: Session,
+    tenant_id: int,
+    service: Service,
+    start_date: date,
+    num_days: int = 14,
+) -> list[date]:
+    """Which of the next `num_days` days (starting at `start_date`) have at
+    least one open slot for `service`. Used for the WhatsApp date picker -
+    checking one slot per day is cheap and avoids duplicating the working
+    hours / overlap logic here."""
+    available: list[date] = []
+
+    for day_offset in range(num_days):
+        current_date = start_date + timedelta(days=day_offset)
+        if get_available_slots(db, tenant_id, service, current_date, num_days=1, limit=1):
+            available.append(current_date)
+
+    return available

@@ -1,0 +1,135 @@
+from datetime import date
+
+DEFAULT_LANGUAGE = "ar"
+
+DAY_NAMES: dict[str, list[str]] = {
+    "ar": ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"],
+    "he": ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"],
+    "en": ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+}
+
+TRANSLATIONS: dict[str, dict[str, str]] = {
+    "ar": {
+        "welcome_header": "القائمة الرئيسية",
+        "welcome_body": "مرحباً بكم في {shop_name}! كيف يمكننا مساعدتك؟",
+        "menu_button": "اختر",
+        "menu_book": "حجز موعد",
+        "menu_language": "تغيير اللغة",
+        "menu_call": "اتصل بنا",
+        "menu_address": "العنوان",
+        "lang_header": "اللغة",
+        "lang_body": "الرجاء اختيار لغتك المفضلة",
+        "lang_ar": "العربية",
+        "lang_he": "עברית",
+        "lang_en": "English",
+        "more_options": "المزيد",
+        "service_header": "الخدمات",
+        "service_body": "ما هي الخدمة التي ترغب بحجزها؟",
+        "no_services": "عذراً، لم يتم إعداد أي خدمات بعد.",
+        "date_header": "اختر التاريخ",
+        "date_body": "اختر التاريخ المناسب لك",
+        "no_dates": "عذراً، لا توجد مواعيد متاحة خلال الأسبوعين القادمين.",
+        "slot_header": "اختر الوقت",
+        "slot_body": "الأوقات المتاحة يوم {date}",
+        "no_slots": "عذراً، لا توجد أوقات متاحة في هذا اليوم.",
+        "booking_conflict": "عذراً، تم حجز هذا الموعد للتو. الرجاء اختيار وقت آخر.",
+        "booking_error": "عذراً، حدث خطأ. الرجاء المحاولة مرة أخرى.",
+        "booking_summary": (
+            "تم تأكيد حجزك بنجاح! ✅\n{shop_name}\n{service_name} - {price} ₪\n"
+            "📅 {date}\n🕐 {time}\nنراكم قريباً!"
+        ),
+        "call_reply": "يمكنكم الاتصال بنا على:\n{phone}",
+        "call_not_set": "عذراً، رقم الهاتف غير متوفر حالياً.",
+        "address_reply": "📍 عنواننا:\n{address}",
+        "address_not_set": "عذراً، العنوان غير متوفر حالياً.",
+    },
+    "he": {
+        "welcome_header": "תפריט ראשי",
+        "welcome_body": "ברוכים הבאים ל-{shop_name}! איך נוכל לעזור?",
+        "menu_button": "בחר",
+        "menu_book": "קביעת תור",
+        "menu_language": "שינוי שפה",
+        "menu_call": "התקשרו אלינו",
+        "menu_address": "כתובת",
+        "lang_header": "שפה",
+        "lang_body": "אנא בחרו את השפה המועדפת",
+        "lang_ar": "العربية",
+        "lang_he": "עברית",
+        "lang_en": "English",
+        "more_options": "עוד",
+        "service_header": "שירותים",
+        "service_body": "איזה שירות תרצו להזמין?",
+        "no_services": "מצטערים, עדיין לא הוגדרו שירותים.",
+        "date_header": "בחרו תאריך",
+        "date_body": "בחרו תאריך מתאים",
+        "no_dates": "מצטערים, אין תורים פנויים בשבועיים הקרובים.",
+        "slot_header": "בחרו שעה",
+        "slot_body": "שעות פנויות ביום {date}",
+        "no_slots": "מצטערים, אין שעות פנויות ביום זה.",
+        "booking_conflict": "מצטערים, התור הזה נתפס הרגע. אנא בחרו שעה אחרת.",
+        "booking_error": "מצטערים, אירעה שגיאה. נסו שוב.",
+        "booking_summary": (
+            "התור אושר בהצלחה! ✅\n{shop_name}\n{service_name} - {price} ₪\n"
+            "📅 {date}\n🕐 {time}\nנתראה בקרוב!"
+        ),
+        "call_reply": "ניתן להתקשר אלינו:\n{phone}",
+        "call_not_set": "מצטערים, מספר הטלפון אינו זמין כרגע.",
+        "address_reply": "📍 הכתובת שלנו:\n{address}",
+        "address_not_set": "מצטערים, הכתובת אינה זמינה כרגע.",
+    },
+    "en": {
+        "welcome_header": "Main Menu",
+        "welcome_body": "Welcome to {shop_name}! How can we help you?",
+        "menu_button": "Choose",
+        "menu_book": "Book an appointment",
+        "menu_language": "Change language",
+        "menu_call": "Call the shop",
+        "menu_address": "Address",
+        "lang_header": "Language",
+        "lang_body": "Please choose your preferred language",
+        "lang_ar": "العربية",
+        "lang_he": "עברית",
+        "lang_en": "English",
+        "more_options": "More options",
+        "service_header": "Services",
+        "service_body": "Which service would you like to book?",
+        "no_services": "Sorry, no services have been set up yet.",
+        "date_header": "Choose a date",
+        "date_body": "Choose a date that works for you",
+        "no_dates": "Sorry, nothing available in the next two weeks.",
+        "slot_header": "Choose a time",
+        "slot_body": "Available times on {date}",
+        "no_slots": "Sorry, no times available on this day.",
+        "booking_conflict": "Sorry, that slot was just taken. Please pick another time.",
+        "booking_error": "Sorry, something went wrong. Please try again.",
+        "booking_summary": (
+            "Your booking is confirmed! ✅\n{shop_name}\n{service_name} - {price} ₪\n"
+            "📅 {date}\n🕐 {time}\nSee you soon!"
+        ),
+        "call_reply": "You can reach us at:\n{phone}",
+        "call_not_set": "Sorry, no phone number is set up yet.",
+        "address_reply": "📍 Our address:\n{address}",
+        "address_not_set": "Sorry, no address is set up yet.",
+    },
+}
+
+
+def t(lang: str, key: str, **kwargs) -> str:
+    strings = TRANSLATIONS.get(lang, TRANSLATIONS[DEFAULT_LANGUAGE])
+    template = strings.get(key, TRANSLATIONS[DEFAULT_LANGUAGE].get(key, key))
+    return template.format(**kwargs) if kwargs else template
+
+
+def day_name(lang: str, day_of_week: int) -> str:
+    names = DAY_NAMES.get(lang, DAY_NAMES[DEFAULT_LANGUAGE])
+    return names[day_of_week]
+
+
+def format_date_row_title(lang: str, d: date) -> str:
+    day_of_week = (d.weekday() + 1) % 7
+    return f"{day_name(lang, day_of_week)} {d.day}/{d.month}"
+
+
+def format_date_full(lang: str, d: date) -> str:
+    day_of_week = (d.weekday() + 1) % 7
+    return f"{day_name(lang, day_of_week)}, {d.day}/{d.month}/{d.year}"

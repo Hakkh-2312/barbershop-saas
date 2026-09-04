@@ -33,3 +33,10 @@ export interface Token {
   access_token: string;
   token_type: string;
 }
+
+export interface Tenant {
+  id: number;
+  name: string;
+  phone: string | null;
+  address: string | null;
+}

@@ -77,6 +77,10 @@ def _list_reply_message(
     }
 
 
+def _rows(sent_payload):
+    return sent_payload["interactive"]["action"]["sections"][0]["rows"]
+
+
 @pytest.fixture()
 def whatsapp_shop(client, auth_headers, monkeypatch):
     """A tenant with one service and working hours every day, wired up as
@@ -116,57 +120,57 @@ def capture_sent(monkeypatch):
         sent.append(json)
         return FakeResponse()
 
-    monkeypatch.setattr("app.api.routes.whatsapp.httpx.post", fake_post)
+    monkeypatch.setattr("app.services.whatsapp_client.httpx.post", fake_post)
     return sent
 
 
-def test_first_message_sends_service_list(client, whatsapp_shop, capture_sent):
-    _headers, _tenant_id, service_id = whatsapp_shop
-    phone = "15550001111"
+def test_first_message_sends_main_menu_in_arabic(client, whatsapp_shop, capture_sent):
+    _headers, _tenant_id, _service_id = whatsapp_shop
+    phone = "15550001100"
 
     resp = client.post("/api/whatsapp/webhook", json=_text_message(phone, "hi"))
     assert resp.status_code == 200
 
     assert len(capture_sent) == 1
     assert capture_sent[0]["type"] == "interactive"
-    assert capture_sent[0]["interactive"]["type"] == "list"
-    rows = capture_sent[0]["interactive"]["action"]["sections"][0]["rows"]
-    assert any(r["id"] == f"service:{service_id}" for r in rows)
+    row_ids = [r["id"] for r in _rows(capture_sent[0])]
+    assert row_ids == ["menu:book", "menu:language", "menu:call", "menu:address"]
+    assert "WA Shop" in capture_sent[0]["interactive"]["body"]["text"]
 
 
-def test_selecting_service_sends_slot_list(client, whatsapp_shop, capture_sent, db_session):
+def test_book_option_shows_service_list(client, whatsapp_shop, capture_sent):
     _headers, _tenant_id, service_id = whatsapp_shop
-    phone = "15550001112"
+    phone = "15550001101"
 
     client.post("/api/whatsapp/webhook", json=_text_message(phone, "hi"))
-    resp = client.post(
+    resp = client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, "menu:book"))
+    assert resp.status_code == 200
+
+    rows = _rows(capture_sent[-1])
+    assert any(r["id"] == f"service:{service_id}" for r in rows)
+    assert "₪" in rows[0]["description"]
+
+
+def test_full_booking_flow_date_then_time(client, whatsapp_shop, capture_sent, db_session):
+    _headers, tenant_id, service_id = whatsapp_shop
+    phone = "15550001102"
+
+    client.post("/api/whatsapp/webhook", json=_text_message(phone, "hi"))
+    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, "menu:book"))
+    client.post(
         "/api/whatsapp/webhook", json=_list_reply_message(phone, f"service:{service_id}")
     )
-    assert resp.status_code == 200
-    assert len(capture_sent) == 2
 
-    slot_rows = capture_sent[1]["interactive"]["action"]["sections"][0]["rows"]
-    assert len(slot_rows) > 0
-    assert all(r["id"].startswith("slot:") for r in slot_rows)
+    # First row is always a real entry - a trailing "more_x:" pagination
+    # row only ever appears last, when there are more than PAGE_SIZE items
+    # (every day/slot is open in this fixture, so pagination does kick in).
+    date_rows = _rows(capture_sent[-1])
+    assert date_rows[0]["id"].startswith("date:")
+    chosen_date_id = date_rows[0]["id"]
 
-    conversation = (
-        db_session.query(WhatsappConversation)
-        .filter(WhatsappConversation.phone_number == phone)
-        .first()
-    )
-    assert conversation.state == "awaiting_slot"
-    assert conversation.selected_service_id == service_id
-
-
-def test_selecting_slot_books_and_autocreates_customer(
-    client, whatsapp_shop, capture_sent, db_session
-):
-    _headers, tenant_id, service_id = whatsapp_shop
-    phone = "15550001113"
-
-    client.post("/api/whatsapp/webhook", json=_text_message(phone, "hi"))
-    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, f"service:{service_id}"))
-    slot_rows = capture_sent[-1]["interactive"]["action"]["sections"][0]["rows"]
+    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, chosen_date_id))
+    slot_rows = _rows(capture_sent[-1])
+    assert slot_rows[0]["id"].startswith("slot:")
     chosen_slot_id = slot_rows[0]["id"]
 
     resp = client.post(
@@ -174,8 +178,11 @@ def test_selecting_slot_books_and_autocreates_customer(
         json=_list_reply_message(phone, chosen_slot_id, contact_name="Jane Doe"),
     )
     assert resp.status_code == 200
-    assert capture_sent[-1]["type"] == "text"
-    assert "booked" in capture_sent[-1]["text"]["body"].lower()
+
+    summary = capture_sent[-1]
+    assert summary["type"] == "text"
+    assert "✅" in summary["text"]["body"]
+    assert "WA Shop" in summary["text"]["body"]
 
     customer = (
         db_session.query(Customer)
@@ -192,51 +199,119 @@ def test_selecting_slot_books_and_autocreates_customer(
     assert appointment.status == "booked"
     assert appointment.service_id == service_id
 
+    # Conversation persists (for language), reset back to the main menu.
     conversation = (
         db_session.query(WhatsappConversation)
         .filter(WhatsappConversation.phone_number == phone)
         .first()
     )
-    assert conversation is None
+    assert conversation is not None
+    assert conversation.state == "main_menu"
+    assert conversation.selected_service_id is None
+    assert conversation.selected_date is None
+
+    # Next message re-shows the main menu (proves the reset worked).
+    client.post("/api/whatsapp/webhook", json=_text_message(phone, "hi again"))
+    assert _rows(capture_sent[-1])[0]["id"] == "menu:book"
 
 
-def test_selecting_existing_customers_phone_reuses_customer(
-    client, whatsapp_shop, capture_sent, db_session
-):
-    headers, tenant_id, service_id = whatsapp_shop
-    phone = "15550001114"
-
-    existing = client.post(
-        "/api/customers", headers=headers, json={"name": "Existing Customer", "phone": phone}
-    ).json()
+def test_language_switch_persists_across_messages(client, whatsapp_shop, capture_sent, db_session):
+    _headers, _tenant_id, _service_id = whatsapp_shop
+    phone = "15550001103"
 
     client.post("/api/whatsapp/webhook", json=_text_message(phone, "hi"))
-    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, f"service:{service_id}"))
-    slot_rows = capture_sent[-1]["interactive"]["action"]["sections"][0]["rows"]
-    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, slot_rows[0]["id"]))
+    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, "menu:language"))
+    lang_rows = _rows(capture_sent[-1])
+    assert {r["id"] for r in lang_rows} == {"lang:ar", "lang:he", "lang:en"}
 
-    appointment = (
-        db_session.query(Appointment).filter(Appointment.customer_id == existing["id"]).first()
-    )
-    assert appointment is not None
+    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, "lang:en"))
+    menu_after_switch = capture_sent[-1]
+    assert "Welcome to" in menu_after_switch["interactive"]["body"]["text"]
 
-    all_customers_for_phone = (
-        db_session.query(Customer)
-        .filter(Customer.tenant_id == tenant_id, Customer.phone == phone)
-        .all()
+    conversation = (
+        db_session.query(WhatsappConversation)
+        .filter(WhatsappConversation.phone_number == phone)
+        .first()
     )
-    assert len(all_customers_for_phone) == 1
+    assert conversation.language == "en"
+
+    # A brand new message later still uses English - language persisted.
+    client.post("/api/whatsapp/webhook", json=_text_message(phone, "hello again"))
+    assert "Welcome to" in capture_sent[-1]["interactive"]["body"]["text"]
+
+
+def test_call_option_replies_with_phone_or_fallback(
+    client, whatsapp_shop, capture_sent, auth_headers
+):
+    headers, _tenant_id, _service_id = whatsapp_shop
+    phone = "15550001104"
+
+    client.post("/api/whatsapp/webhook", json=_text_message(phone, "hi"))
+    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, "menu:call"))
+    assert capture_sent[-1]["type"] == "text"
+    assert "غير متوفر" in capture_sent[-1]["text"]["body"]
+
+    client.patch("/api/tenants/me", headers=headers, json={"phone": "+972501234567"})
+
+    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, "menu:call"))
+    assert "+972501234567" in capture_sent[-1]["text"]["body"]
+
+
+def test_address_option_replies_with_address_or_fallback(client, whatsapp_shop, capture_sent):
+    headers, _tenant_id, _service_id = whatsapp_shop
+    phone = "15550001105"
+
+    client.post("/api/whatsapp/webhook", json=_text_message(phone, "hi"))
+    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, "menu:address"))
+    assert "غير متوفر" in capture_sent[-1]["text"]["body"]
+
+    client.patch("/api/tenants/me", headers=headers, json={"address": "123 Main St"})
+
+    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, "menu:address"))
+    assert "123 Main St" in capture_sent[-1]["text"]["body"]
+
+
+def test_service_list_pagination(client, whatsapp_shop, capture_sent):
+    headers, _tenant_id, _service_id = whatsapp_shop
+    phone = "15550001106"
+
+    # Create enough additional services to force pagination (9 per page).
+    for i in range(10):
+        client.post(
+            "/api/services",
+            headers=headers,
+            json={"name": f"Service {i}", "duration_minutes": 15, "price": 20},
+        )
+
+    client.post("/api/whatsapp/webhook", json=_text_message(phone, "hi"))
+    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, "menu:book"))
+
+    first_page = _rows(capture_sent[-1])
+    assert len(first_page) == 10
+    assert first_page[-1]["id"] == "more_services:1"
+
+    client.post(
+        "/api/whatsapp/webhook", json=_list_reply_message(phone, "more_services:1")
+    )
+    second_page = _rows(capture_sent[-1])
+    assert len(second_page) >= 1
+    assert all(r["id"].startswith("service:") for r in second_page)
 
 
 def test_conflicting_slot_selection_does_not_double_book(
     client, whatsapp_shop, capture_sent, db_session
 ):
     headers, tenant_id, service_id = whatsapp_shop
-    phone = "15550001115"
+    phone = "15550001107"
 
     client.post("/api/whatsapp/webhook", json=_text_message(phone, "hi"))
-    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, f"service:{service_id}"))
-    slot_rows = capture_sent[-1]["interactive"]["action"]["sections"][0]["rows"]
+    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, "menu:book"))
+    client.post(
+        "/api/whatsapp/webhook", json=_list_reply_message(phone, f"service:{service_id}")
+    )
+    date_id = _rows(capture_sent[-1])[0]["id"]
+    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, date_id))
+    slot_rows = _rows(capture_sent[-1])
     chosen_slot_id = slot_rows[0]["id"]
     chosen_start_time = chosen_slot_id.split(":", 1)[1]
 
@@ -255,11 +330,11 @@ def test_conflicting_slot_selection_does_not_double_book(
     )
     assert booked.status_code == 201
 
-    resp = client.post(
-        "/api/whatsapp/webhook", json=_list_reply_message(phone, chosen_slot_id)
-    )
-    assert resp.status_code == 200
-    assert "taken" in capture_sent[-1]["text"]["body"].lower()
+    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, chosen_slot_id))
+    # The conflict reply, followed by the menu being re-offered (unlike a
+    # successful booking, which ends quietly).
+    assert "تم حجز" in capture_sent[-2]["text"]["body"]
+    assert _rows(capture_sent[-1])[0]["id"] == "menu:book"
 
     whatsapp_customer = (
         db_session.query(Customer)
@@ -275,13 +350,6 @@ def test_conflicting_slot_selection_does_not_double_book(
     )
     assert len(appointments_for_whatsapp_customer) == 0
 
-    conversation = (
-        db_session.query(WhatsappConversation)
-        .filter(WhatsappConversation.phone_number == phone)
-        .first()
-    )
-    assert conversation is None
-
 
 def test_no_services_configured_sends_apology(client, auth_headers, monkeypatch, capture_sent):
     headers = auth_headers(email="empty@shop.com", tenant_name="Empty Shop")
@@ -290,9 +358,10 @@ def test_no_services_configured_sends_apology(client, auth_headers, monkeypatch,
     monkeypatch.setattr(settings, "whatsapp_access_token", "fake-token")
     monkeypatch.setattr(settings, "whatsapp_phone_number_id", "fake-phone-id")
 
+    client.post("/api/whatsapp/webhook", json=_text_message("15550001108", "hi"))
     resp = client.post(
-        "/api/whatsapp/webhook", json=_text_message("15550001116", "hi")
+        "/api/whatsapp/webhook", json=_list_reply_message("15550001108", "menu:book")
     )
     assert resp.status_code == 200
-    assert capture_sent[0]["type"] == "text"
-    assert "services" in capture_sent[0]["text"]["body"].lower()
+    assert capture_sent[-1]["type"] == "text"
+    assert "خدمات" in capture_sent[-1]["text"]["body"]

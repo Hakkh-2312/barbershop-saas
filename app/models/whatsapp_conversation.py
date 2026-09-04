@@ -1,3 +1,5 @@
+from datetime import date
+
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -6,9 +8,12 @@ from app.db.mixins import TimestampMixin
 
 
 class WhatsappConversation(TimestampMixin, Base):
-    """Tracks where a phone number is in the booking flow between webhook
-    calls - WhatsApp's interactive replies carry only the tapped option's
-    id, not any prior conversation context."""
+    """A persistent per-(tenant, phone_number) session. Tracks where a
+    customer is in the booking flow between webhook calls - WhatsApp's
+    interactive replies carry only the tapped option's id, not any prior
+    conversation context - and remembers their chosen language across
+    visits, so it's never deleted, only reset back to "main_menu" once a
+    booking completes."""
 
     __tablename__ = "whatsapp_conversations"
     __table_args__ = (
@@ -29,7 +34,15 @@ class WhatsappConversation(TimestampMixin, Base):
 
     state: Mapped[str] = mapped_column(String(30), nullable=False)
 
+    language: Mapped[str] = mapped_column(String(5), nullable=False, default="ar")
+
     selected_service_id: Mapped[int | None] = mapped_column(
         ForeignKey("services.id", ondelete="CASCADE"),
         nullable=True,
     )
+
+    selected_date: Mapped[date | None] = mapped_column(nullable=True)
+
+    # Reused contextually for whichever list `state` currently points at
+    # (service/date/slot) - reset to 0 whenever a new list is first shown.
+    page: Mapped[int] = mapped_column(nullable=False, default=0)

@@ -1,3 +1,4 @@
+
 # Barbershop SaaS
 
 Multi-tenant booking platform: FastAPI + PostgreSQL + SQLAlchemy + Alembic
@@ -15,8 +16,11 @@ app/
   db/base.py            # Declarative Base — all models inherit from this
   db/mixins.py           # TimestampMixin (created_at/updated_at)
   db/seed.py               # One-off script seeding a demo tenant
-  models/                   # Tenant, User, Customer, Service, WorkingHours, Appointment
+  models/                   # Tenant, User, Customer, Service, WorkingHours, Appointment, WhatsappConversation
   schemas/                   # Pydantic request/response models
+  services/                    # booking.py (shared booking/slot logic), whatsapp_flow.py
+                                # (conversation state machine), whatsapp_i18n.py (ar/he/en),
+                                # whatsapp_client.py (Meta API calls)
   api/deps.py                  # get_current_user / get_current_tenant_id
   api/routes/
     health.py                    # /api/health, /api/health/db
@@ -26,6 +30,7 @@ app/
     customers.py                 # /api/customers (full CRUD)
     services.py                  # /api/services (full CRUD)
     working_hours.py             # /api/working-hours (get + upsert per day)
+    tenants.py                   # /api/tenants/me (shop name/phone/address)
     whatsapp.py                  # /api/whatsapp/webhook (Meta Cloud API)
   main.py                         # FastAPI app entrypoint, CORS, error handling
 alembic/                           # DB migrations, wired to app.core.config
@@ -143,12 +148,20 @@ already configured backend-side for `http://localhost:3000` by default.
 
 A customer can message the shop's WhatsApp number and book entirely by
 tapping clickable options — no manual dashboard entry needed. The flow:
-message the shop → pick a service from a list → pick an open time slot
-from a list → booked. Their `Customer` record is created automatically
-from their WhatsApp number and profile name the first time they book.
-Reuses the exact same validation as the REST API (`app/services/booking.py`)
-so working hours, overlaps, and the double-booking exclusion constraint all
-apply identically.
+a welcome menu (book / change language / call the shop / the address) →
+pick a service → pick a date (up to 2 weeks out) → pick an open time →
+booked, with a summary message and the conversation ending there. Their
+`Customer` record is created automatically from their WhatsApp number and
+profile name the first time they book. Defaults to Arabic, with Hebrew and
+English available from the menu — the chosen language is remembered per
+phone number across visits. Every list (services/dates/times) pages past
+10 items via a "more options" row, since WhatsApp caps list messages at 10
+rows. Reuses the exact same validation as the REST API
+(`app/services/booking.py`) so working hours, overlaps, and the
+double-booking exclusion constraint all apply identically.
+
+The shop's phone number and address (used by the "call"/"address" menu
+options) are set on the **Settings** page in the dashboard.
 
 Not tenant-scoped yet — `WHATSAPP_TENANT_ID` says which single shop this
 WhatsApp number belongs to (there's no phone-number-to-tenant mapping until
