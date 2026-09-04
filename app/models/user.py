@@ -5,8 +5,8 @@ from app.db.base import Base
 from app.db.mixins import TimestampMixin
 
 
-class Service(TimestampMixin, Base):
-    __tablename__ = "services"
+class User(TimestampMixin, Base):
+    __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
 
@@ -16,8 +16,11 @@ class Service(TimestampMixin, Base):
         index=True,
     )
 
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
 
-    duration_minutes: Mapped[int] = mapped_column(nullable=False)
-
-    price: Mapped[int] = mapped_column(nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
