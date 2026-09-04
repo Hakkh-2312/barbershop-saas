@@ -1,7 +1,8 @@
-# Barbershop SaaS — Backend
+# Barbershop SaaS
 
-Multi-tenant booking backend: FastAPI + PostgreSQL + SQLAlchemy + Alembic.
-This replaces the earlier Flask + Google Sheets prototype.
+Multi-tenant booking platform: FastAPI + PostgreSQL + SQLAlchemy + Alembic
+backend, with a Next.js dashboard for shop owners. This replaces the earlier
+Flask + Google Sheets prototype.
 
 ## What's here
 
@@ -25,6 +26,7 @@ app/
     customers.py                 # /api/customers (full CRUD)
     services.py                  # /api/services (full CRUD)
     working_hours.py             # /api/working-hours (get + upsert per day)
+    whatsapp.py                  # /api/whatsapp/webhook (Meta Cloud API)
   main.py                         # FastAPI app entrypoint, CORS, error handling
 alembic/                           # DB migrations, wired to app.core.config
 tests/                              # pytest + httpx, runs against real Postgres
@@ -32,6 +34,8 @@ Dockerfile, docker-compose.yml       # Containerized app + local Postgres
 .github/workflows/ci.yml              # Lint, migrate, test on every push/PR
 pyproject.toml
 .env.example
+
+dashboard/                            # Next.js shop-owner UI (separate app, see below)
 ```
 
 Every tenant-owned table is scoped by `tenant_id`, resolved from the caller's
@@ -120,13 +124,42 @@ This runs the API against a local Postgres container rather than Supabase —
 `docker-compose.yml` overrides `DATABASE_URL` for the `api` service regardless
 of what's in `.env`.
 
+## Running the dashboard
+
+```bash
+cd dashboard
+npm install
+cp .env.local.example .env.local   # defaults to http://localhost:8000, fine for local dev
+npm run dev
+```
+
+Then open http://localhost:3000 — sign up (creates a tenant + logs you in),
+and manage appointments/customers/services/working hours. It talks to
+whatever `NEXT_PUBLIC_API_URL` points at, so make sure the backend (either
+`uv run uvicorn ...` or `docker compose up`) is running first. CORS is
+already configured backend-side for `http://localhost:3000` by default.
+
+## WhatsApp Cloud API webhook
+
+`POST /api/whatsapp/webhook` receives messages from a Meta WhatsApp Business
+number; `GET /api/whatsapp/webhook` handles Meta's one-time verification
+handshake when you configure the webhook. To set it up:
+1. [developers.facebook.com/apps](https://developers.facebook.com/apps) → create an app → add the **WhatsApp** product.
+2. WhatsApp → API Setup gives you a test phone number, its **Phone Number ID**, and a temporary **access token**.
+3. WhatsApp → Configuration → Webhook: callback URL `https://<public-url>/api/whatsapp/webhook` (needs real HTTPS — use `ngrok http 8000` locally, or your Render URL once deployed), verify token = anything you choose.
+4. Put the verify token, access token, and phone number ID into `.env` as `WHATSAPP_VERIFY_TOKEN` / `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID`.
+
+This first version isn't tenant-scoped — it's one shop's WhatsApp number
+until multi-tenant WhatsApp routing is built (a phone-number-to-tenant
+mapping, not yet needed with one shop on it).
+
 ## Configuration reference
 
 Beyond `DATABASE_URL` and `JWT_SECRET_KEY`, see `.env.example` for:
 - `CORS_ALLOWED_ORIGINS` — comma-separated origins allowed to call this API (e.g. the dashboard's dev/prod URLs)
 - `DEBUG` — leave `true` locally; a deployment that leaves this unset defaults to `false` so stack traces never leak to clients
 - `SENTRY_DSN` — optional; once set, unhandled exceptions are reported to Sentry
-- `WHATSAPP_VERIFY_TOKEN` / `WHATSAPP_ACCESS_TOKEN` — for Milestone 2, not yet used
+- `WHATSAPP_VERIFY_TOKEN` / `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` — see "WhatsApp Cloud API webhook" above
 
 ## Set up GitHub
 
@@ -153,8 +186,14 @@ JSON/PEM files. Pushing to `main` or opening a PR runs `.github/workflows/ci.yml
 3. ~~Core CRUD + availability/booking logic~~ — done, including double-booking
    protection and full CRUD for customers/services/working hours.
 4. ~~Automated tests, DB hardening, CORS, logging/Sentry, Docker, CI~~ — done.
-5. **Next up:** the Next.js dashboard (shop owner UI), then the WhatsApp
-   Cloud API webhook (Milestone 2).
+5. ~~Next.js dashboard, WhatsApp Cloud API webhook~~ — done. WhatsApp needs
+   your own Meta app credentials in `.env` to actually talk to real
+   WhatsApp (see "WhatsApp Cloud API webhook" above) — the handshake and
+   message-receiving logic are verified, sending just needs real
+   credentials to complete the loop.
+6. **Next up:** deploy for real (Render for the API, Vercel for the
+   dashboard) so the WhatsApp webhook has a stable public URL, then
+   multi-staff availability and timezone handling if/when they matter.
 
 ## Accounts you'll still need to create yourself (no rush — only when we get there)
 
