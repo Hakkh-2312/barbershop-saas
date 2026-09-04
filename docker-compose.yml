@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: barbershop
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    env_file:
+      - .env
+    environment:
+      # Overrides whatever DATABASE_URL is in .env (e.g. Supabase) so
+      # `docker compose up` always talks to the local `db` service above.
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/barbershop
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    # Run `docker compose run --rm api uv run alembic upgrade head`
+    # once before first use (and after adding new migrations) to apply the
+    # schema to this local database.
+
+volumes:
+  db_data:

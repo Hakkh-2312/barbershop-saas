@@ -7,20 +7,40 @@ This replaces the earlier Flask + Google Sheets prototype.
 
 ```
 app/
-  core/config.py     # Settings, loaded from .env
-  db/session.py       # SQLAlchemy engine + DB session dependency
-  db/base.py           # Declarative Base — all models will inherit from this
-  models/                # (empty for now — schema design is next)
-  schemas/               # Pydantic request/response models will go here
-  api/routes/health.py   # /api/health and /api/health/db
-  main.py                 # FastAPI app entrypoint
-alembic/                   # DB migrations, already wired to app.core.config
+  core/config.py       # Settings, loaded from .env
+  core/security.py     # Password hashing (argon2) + JWT issuing/verification
+  core/logging.py      # Root logger configuration
+  db/session.py        # SQLAlchemy engine + DB session dependency
+  db/base.py            # Declarative Base — all models inherit from this
+  db/mixins.py           # TimestampMixin (created_at/updated_at)
+  db/seed.py               # One-off script seeding a demo tenant
+  models/                   # Tenant, User, Customer, Service, WorkingHours, Appointment
+  schemas/                   # Pydantic request/response models
+  api/deps.py                  # get_current_user / get_current_tenant_id
+  api/routes/
+    health.py                    # /api/health, /api/health/db
+    auth.py                      # /api/auth/signup, /api/auth/login
+    availability.py              # /api/availability
+    appointments.py              # /api/appointments (create, list, get, cancel, reschedule)
+    customers.py                 # /api/customers (full CRUD)
+    services.py                  # /api/services (full CRUD)
+    working_hours.py             # /api/working-hours (get + upsert per day)
+  main.py                         # FastAPI app entrypoint, CORS, error handling
+alembic/                           # DB migrations, wired to app.core.config
+tests/                              # pytest + httpx, runs against real Postgres
+Dockerfile, docker-compose.yml       # Containerized app + local Postgres
+.github/workflows/ci.yml              # Lint, migrate, test on every push/PR
 pyproject.toml
 .env.example
 ```
 
-Verified working: dependency install, app boot, `/` and `/api/health` endpoints,
-and Alembic autogenerate — all tested end to end before handing this to you.
+Every tenant-owned table is scoped by `tenant_id`, resolved from the caller's
+JWT (not a hardcoded value) via `get_current_tenant_id`. A tenant cannot read,
+modify, or book against another tenant's data — covered by
+`tests/test_tenant_isolation.py`. Double-booking is prevented both at the
+application level (an overlap check before insert) and at the database level
+(a Postgres exclusion constraint on `appointments`), so even two truly
+simultaneous requests for the same slot can't both succeed.
 
 ## 1. Install locally
 
@@ -38,13 +58,13 @@ uv sync
 
 ## 2. Create your Supabase project (managed Postgres)
 
-I can't sign up for accounts on your behalf, so this part's on you — it's quick:
-
 1. Go to https://supabase.com → sign up (GitHub login is easiest) → "New project"
 2. Pick a name (e.g. `barbershop-saas`), a strong DB password (save it), and a region close to Israel (e.g. `eu-central-1`)
 3. Once it's provisioned: **Project Settings → Database → Connection string → URI**
    - Use the **Session pooler** connection string for local dev (port 5432 direct connection also works)
 4. Paste that into your `.env` as `DATABASE_URL`, replacing the placeholder
+
+Alternatively, run `docker compose up -d db` for a local Postgres instead of Supabase (see "Running with Docker" below).
 
 ## 3. Generate a real JWT secret
 
@@ -53,7 +73,13 @@ python -c "import secrets; print(secrets.token_hex(32))"
 ```
 Put the output in `.env` as `JWT_SECRET_KEY`.
 
-## 4. Run it
+## 4. Apply database migrations
+
+```bash
+uv run alembic upgrade head
+```
+
+## 5. Run it
 
 ```bash
 uv run uvicorn app.main:app --reload
@@ -61,13 +87,48 @@ uv run uvicorn app.main:app --reload
 
 Then check:
 - http://localhost:8000/ → `{"message": "Barbershop SaaS API is running", ...}`
-- http://localhost:8000/api/health/db → confirms it can reach your Supabase DB
-- http://localhost:8000/docs → interactive API docs (built in, courtesy of FastAPI)
+- http://localhost:8000/api/health/db → confirms it can reach your database
+- http://localhost:8000/docs → interactive API docs, including a working "Authorize"
+  button — sign up via `POST /api/auth/signup` or paste a token you already have
 
 If `/api/health/db` fails, double check the `DATABASE_URL` — this is the #1 place
 people get tripped up (wrong password, wrong host, or the pooler vs. direct port).
 
-## 5. Set up GitHub
+## Running tests
+
+Tests need a real Postgres (the double-booking exclusion constraint uses
+`gist`/`tsrange`, which has no SQLite equivalent) and isolate everything into
+their own `test` schema, so they never touch whatever else lives in the
+target database:
+
+```bash
+docker compose up -d db
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/barbershop uv run pytest
+```
+
+(Omit `TEST_DATABASE_URL` to default to `localhost:5432/postgres`.)
+
+## Running with Docker
+
+```bash
+docker compose up -d db
+docker compose run --rm api uv run alembic upgrade head   # first time, and after new migrations
+docker compose up
+```
+
+This runs the API against a local Postgres container rather than Supabase —
+`docker-compose.yml` overrides `DATABASE_URL` for the `api` service regardless
+of what's in `.env`.
+
+## Configuration reference
+
+Beyond `DATABASE_URL` and `JWT_SECRET_KEY`, see `.env.example` for:
+- `CORS_ALLOWED_ORIGINS` — comma-separated origins allowed to call this API (e.g. the dashboard's dev/prod URLs)
+- `DEBUG` — leave `true` locally; a deployment that leaves this unset defaults to `false` so stack traces never leak to clients
+- `SENTRY_DSN` — optional; once set, unhandled exceptions are reported to Sentry
+- `WHATSAPP_VERIFY_TOKEN` / `WHATSAPP_ACCESS_TOKEN` — for Milestone 2, not yet used
+
+## Set up GitHub
 
 ```bash
 git init
@@ -81,18 +142,19 @@ git branch -M main
 git push -u origin main
 ```
 `.gitignore` is already set up to exclude `.env`, `.venv/`, and any service-account
-JSON/PEM files — same mistake that bit the old Flask project won't happen here.
+JSON/PEM files. Pushing to `main` or opening a PR runs `.github/workflows/ci.yml`
+(lint, migrate, test against a fresh Postgres container).
 
 ## Next steps (in order)
 
-1. **Design the multi-tenant schema** — `Barbershop`, `User`, `Client`, `Service`,
-   `Appointment`, etc., every tenant-owned table carrying a `barbershop_id`. This is
-   the next thing to build, and everything else (auth, booking logic, WhatsApp) sits
-   on top of it.
-2. Wire up Alembic's first real migration once models exist (`uv run alembic revision --autogenerate -m "initial schema"`).
-3. Auth: signup/login issuing a JWT that carries `barbershop_id`.
-4. Core CRUD + availability logic.
-5. WhatsApp webhook (Milestone 2 from the plan).
+1. ~~Design the multi-tenant schema~~ — done: `Tenant`, `User`, `Customer`, `Service`,
+   `WorkingHours`, `Appointment`, every tenant-owned table carrying a `tenant_id`.
+2. ~~Auth: signup/login issuing a JWT that carries the tenant~~ — done.
+3. ~~Core CRUD + availability/booking logic~~ — done, including double-booking
+   protection and full CRUD for customers/services/working hours.
+4. ~~Automated tests, DB hardening, CORS, logging/Sentry, Docker, CI~~ — done.
+5. **Next up:** the Next.js dashboard (shop owner UI), then the WhatsApp
+   Cloud API webhook (Milestone 2).
 
 ## Accounts you'll still need to create yourself (no rush — only when we get there)
 
@@ -103,5 +165,5 @@ JSON/PEM files — same mistake that bit the old Flask project won't happen here
 | Milestone 1 end | Render | Backend hosting |
 | Milestone 1 end | Vercel | Next.js dashboard hosting |
 | Milestone 2 | Meta Developer account + WhatsApp Cloud API app | Customer-facing WhatsApp bot |
-| Later | Sentry | Error monitoring |
+| Whenever you want error alerts | Sentry | Error monitoring (`SENTRY_DSN` in `.env`) |
 | Later | Domain registrar | Your own domain |
