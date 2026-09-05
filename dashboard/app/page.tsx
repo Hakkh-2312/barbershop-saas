@@ -10,7 +10,7 @@ export default function Home() {
 
   useEffect(() => {
     if (isLoading) return;
-    router.replace(token ? "/appointments" : "/login");
+    router.replace(token ? "/today" : "/login");
   }, [token, isLoading, router]);
 
   return null;

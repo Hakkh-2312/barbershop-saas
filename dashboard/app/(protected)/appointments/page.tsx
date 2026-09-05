@@ -2,6 +2,12 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { apiGet, apiPost, ApiError } from "@/lib/api";
+import { formatTime } from "@/lib/format";
+import { Card } from "@/components/Card";
+import { PageHeader } from "@/components/PageHeader";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
+import { StatusBadge } from "@/components/StatusBadge";
 import type { Appointment } from "@/lib/types";
 
 export default function AppointmentsPage() {
@@ -56,99 +62,80 @@ export default function AppointmentsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Appointments</h1>
+    <div className="flex flex-col gap-6">
+      <PageHeader title="Appointments" description="Every booking for your shop, past and upcoming." />
 
-      <div className="flex flex-wrap gap-3">
-        <input
-          type="date"
-          value={dateFilter}
-          onChange={(e) => setDateFilter(e.target.value)}
-          className="rounded border px-2 py-1 text-sm"
-        />
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded border px-2 py-1 text-sm"
-        >
-          <option value="">All statuses</option>
-          <option value="booked">Booked</option>
-          <option value="cancelled">Cancelled</option>
-          <option value="completed">Completed</option>
-        </select>
-      </div>
+      <Card>
+        <div className="flex flex-wrap gap-3">
+          <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="">All statuses</option>
+            <option value="booked">Booked</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+      </Card>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      {loading ? (
-        <p className="text-sm text-gray-500">Loading...</p>
-      ) : appointments.length === 0 ? (
-        <p className="text-sm text-gray-500">No appointments found.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-max border-collapse text-sm">
-            <thead>
-              <tr className="border-b text-left">
-                <th className="py-2 pr-4">Start</th>
-                <th className="pr-4">End</th>
-                <th className="pr-4">Customer ID</th>
-                <th className="pr-4">Service ID</th>
-                <th className="pr-4">Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {appointments.map((a) => (
-                <tr key={a.id} className="border-b">
-                  <td className="py-2 pr-4">{a.start_time.replace("T", " ")}</td>
-                  <td className="pr-4">{a.end_time.replace("T", " ")}</td>
-                  <td className="pr-4">{a.customer_id}</td>
-                  <td className="pr-4">{a.service_id}</td>
-                  <td className="pr-4">{a.status}</td>
-                  <td className="py-2">
-                    {a.status === "booked" && (
-                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
-                        <button
-                          onClick={() => handleCancel(a.id)}
-                          className="text-left text-red-600 underline"
-                        >
-                          Cancel
-                        </button>
-                        {rescheduleId === a.id ? (
-                          <span className="flex gap-1">
-                            <input
-                              type="datetime-local"
-                              value={rescheduleValue}
-                              onChange={(e) => setRescheduleValue(e.target.value)}
-                              className="rounded border px-1 text-xs"
-                            />
-                            <button
-                              onClick={() => handleReschedule(a.id)}
-                              className="text-blue-600 underline"
-                            >
-                              Save
-                            </button>
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setRescheduleId(a.id);
-                              setRescheduleValue(a.start_time.slice(0, 16));
-                            }}
-                            className="text-left text-blue-600 underline"
-                          >
-                            Reschedule
-                          </button>
-                        )}
-                      </div>
+      <Card className="p-0">
+        {loading ? (
+          <p className="p-5 text-sm text-slate-500">Loading...</p>
+        ) : appointments.length === 0 ? (
+          <p className="p-5 text-sm text-slate-500">No appointments found.</p>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {appointments.map((a) => (
+              <li key={a.id} className="flex flex-wrap items-center gap-4 p-4">
+                <div className="w-32 shrink-0 text-sm font-medium text-slate-500">
+                  {a.start_time.slice(0, 10)}
+                  <div className="text-slate-900">{formatTime(a.start_time)}</div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-slate-900">{a.customer_name}</p>
+                  <p className="truncate text-sm text-slate-500">{a.service_name}</p>
+                </div>
+                <StatusBadge status={a.status} />
+                {a.status === "booked" && (
+                  <div className="flex shrink-0 items-center gap-2">
+                    {rescheduleId === a.id ? (
+                      <>
+                        <input
+                          type="datetime-local"
+                          value={rescheduleValue}
+                          onChange={(e) => setRescheduleValue(e.target.value)}
+                          className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                        />
+                        <Button variant="secondary" onClick={() => handleReschedule(a.id)}>
+                          Save
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setRescheduleId(a.id);
+                          setRescheduleValue(a.start_time.slice(0, 16));
+                        }}
+                      >
+                        Reschedule
+                      </Button>
                     )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                    <Button variant="danger" onClick={() => handleCancel(a.id)}>
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }

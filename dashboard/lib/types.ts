@@ -2,6 +2,8 @@ export interface Appointment {
   id: number;
   customer_id: number;
   service_id: number;
+  customer_name: string;
+  service_name: string;
   start_time: string;
   end_time: string;
   status: string;
@@ -39,4 +41,11 @@ export interface Tenant {
   name: string;
   phone: string | null;
   address: string | null;
+}
+
+export interface TimeBlock {
+  id: number;
+  start_time: string;
+  end_time: string;
+  reason: string | null;
 }

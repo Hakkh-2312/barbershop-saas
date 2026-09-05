@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.appointment import Appointment
 from app.models.customer import Customer
 from app.models.service import Service
+from app.models.time_block import TimeBlock
 from app.models.working_hours import WorkingHours
 
 
@@ -71,6 +72,19 @@ def check_slot_available(
 
     if conflict_query.first():
         raise BookingError("conflict", "This time slot is no longer available")
+
+    blocked = (
+        db.query(TimeBlock)
+        .filter(
+            TimeBlock.tenant_id == tenant_id,
+            TimeBlock.start_time < end_time,
+            TimeBlock.end_time > start_time,
+        )
+        .first()
+    )
+
+    if blocked:
+        raise BookingError("blocked", "This time is not available")
 
     return end_time
 
@@ -169,12 +183,24 @@ def get_available_slots(
             .all()
         )
 
+        blocks = (
+            db.query(TimeBlock)
+            .filter(
+                TimeBlock.tenant_id == tenant_id,
+                TimeBlock.start_time < day_end,
+                TimeBlock.end_time > day_start,
+            )
+            .all()
+        )
+
         current = day_start
         while current + step <= day_end:
-            if current >= now and not any(
-                a.start_time < current + step and a.end_time > current
-                for a in appointments
-            ):
+            slot_end = current + step
+            is_taken = any(
+                a.start_time < slot_end and a.end_time > current for a in appointments
+            ) or any(b.start_time < slot_end and b.end_time > current for b in blocks)
+
+            if current >= now and not is_taken:
                 slots.append(current)
                 if len(slots) >= limit:
                     break

@@ -2,6 +2,10 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { apiGet, apiPost, apiPatch, apiDelete, ApiError } from "@/lib/api";
+import { Card } from "@/components/Card";
+import { PageHeader } from "@/components/PageHeader";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/Input";
 import type { Customer } from "@/lib/types";
 
 export default function CustomersPage() {
@@ -81,115 +85,89 @@ export default function CustomersPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Customers</h1>
+    <div className="flex flex-col gap-6">
+      <PageHeader title="Customers" description="Everyone who's booked with your shop." />
 
-      <form onSubmit={handleCreate} className="flex flex-wrap gap-2">
-        <input
-          required
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="rounded border px-2 py-1 text-sm"
-        />
-        <input
-          required
-          placeholder="Phone"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className="rounded border px-2 py-1 text-sm"
-        />
-        <input
-          placeholder="Email (optional)"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="rounded border px-2 py-1 text-sm"
-        />
-        <button type="submit" className="rounded bg-black px-3 py-1 text-sm text-white">
-          Add
-        </button>
-      </form>
+      <Card>
+        <h2 className="mb-4 text-sm font-semibold text-slate-900">Add a customer</h2>
+        <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-sm">
+            Name
+            <Input required value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Phone
+            <Input required value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </label>
+          <label className="flex flex-1 min-w-[10rem] flex-col gap-1 text-sm">
+            Email (optional)
+            <Input value={email} onChange={(e) => setEmail(e.target.value)} />
+          </label>
+          <Button type="submit">Add</Button>
+        </form>
+      </Card>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      {loading ? (
-        <p className="text-sm text-gray-500">Loading...</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-max border-collapse text-sm">
-            <thead>
-              <tr className="border-b text-left">
-                <th className="py-2 pr-4">Name</th>
-                <th className="pr-4">Phone</th>
-                <th className="pr-4">Email</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {customers.map((c) => (
-                <tr key={c.id} className="border-b">
-                  {editingId === c.id ? (
-                    <>
-                      <td className="py-2 pr-4">
-                        <input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="rounded border px-1"
-                        />
-                      </td>
-                      <td className="pr-4">
-                        <input
-                          value={editPhone}
-                          onChange={(e) => setEditPhone(e.target.value)}
-                          className="rounded border px-1"
-                        />
-                      </td>
-                      <td className="pr-4">
-                        <input
-                          value={editEmail}
-                          onChange={(e) => setEditEmail(e.target.value)}
-                          className="rounded border px-1"
-                        />
-                      </td>
-                      <td className="flex gap-2 py-2">
-                        <button
-                          onClick={() => handleSaveEdit(c.id)}
-                          className="text-blue-600 underline"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => setEditingId(null)}
-                          className="text-gray-500 underline"
-                        >
-                          Cancel
-                        </button>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="py-2 pr-4">{c.name}</td>
-                      <td className="pr-4">{c.phone}</td>
-                      <td className="pr-4">{c.email ?? "-"}</td>
-                      <td className="flex gap-2 py-2">
-                        <button onClick={() => startEdit(c)} className="text-blue-600 underline">
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(c.id)}
-                          className="text-red-600 underline"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Card className="p-0">
+        {loading ? (
+          <p className="p-5 text-sm text-slate-500">Loading...</p>
+        ) : customers.length === 0 ? (
+          <p className="p-5 text-sm text-slate-500">No customers yet.</p>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {customers.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-center gap-4 p-4">
+                {editingId === c.id ? (
+                  <>
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-40"
+                    />
+                    <Input
+                      value={editPhone}
+                      onChange={(e) => setEditPhone(e.target.value)}
+                      className="w-36"
+                    />
+                    <Input
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      className="min-w-[10rem] flex-1"
+                    />
+                    <div className="flex gap-2">
+                      <Button variant="secondary" onClick={() => handleSaveEdit(c.id)}>
+                        Save
+                      </Button>
+                      <Button variant="ghost" onClick={() => setEditingId(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-slate-900">{c.name}</p>
+                      <p className="truncate text-sm text-slate-500">
+                        {c.phone}
+                        {c.email ? ` · ${c.email}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <Button variant="secondary" onClick={() => startEdit(c)}>
+                        Edit
+                      </Button>
+                      <Button variant="danger" onClick={() => handleDelete(c.id)}>
+                        Delete
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }

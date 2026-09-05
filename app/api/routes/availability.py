@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_tenant_id
 from app.db.session import get_db
 from app.models.appointment import Appointment
+from app.models.time_block import TimeBlock
 from app.models.working_hours import WorkingHours
 
 router = APIRouter(
@@ -54,6 +55,16 @@ def get_availability(
         .all()
     )
 
+    blocks = (
+        db.query(TimeBlock)
+        .filter(
+            TimeBlock.tenant_id == tenant_id,
+            TimeBlock.start_time < day_end,
+            TimeBlock.end_time > day_start,
+        )
+        .all()
+    )
+
     slots = []
 
     current = day_start
@@ -61,14 +72,14 @@ def get_availability(
     while current < day_end:
         slot_end = current + timedelta(minutes=20)
 
-        # A slot is unavailable if it overlaps an existing appointment.
-        is_booked = any(
-            appointment.start_time < slot_end
-            and appointment.end_time > current
+        # A slot is unavailable if it overlaps an existing appointment or
+        # a shop-owner time block.
+        is_taken = any(
+            appointment.start_time < slot_end and appointment.end_time > current
             for appointment in appointments
-        )
+        ) or any(block.start_time < slot_end and block.end_time > current for block in blocks)
 
-        if not is_booked:
+        if not is_taken:
             slots.append(current.strftime("%H:%M"))
 
         current += timedelta(minutes=20)
