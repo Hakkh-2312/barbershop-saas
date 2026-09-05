@@ -6,9 +6,16 @@ from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker
 
 import app.models  # noqa: F401 - registers all models on Base.metadata
+from app.core.limiter import limiter
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+
+# The test suite signs up/logs in far more than the production rate limits
+# allow (e.g. once per test via the auth_headers fixture below) - rate
+# limiting itself is exercised in test_rate_limiting.py with the limiter
+# re-enabled just for that test.
+limiter.enabled = False
 
 # Defaults to a local Postgres (e.g. the "db" service in docker-compose.yml).
 # Postgres is required, not optional: the overlap-prevention exclusion

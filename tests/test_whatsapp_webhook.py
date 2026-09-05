@@ -1,3 +1,8 @@
+import hashlib
+import hmac
+import json
+
+
 def test_webhook_verification_succeeds_with_correct_token(client, monkeypatch):
     monkeypatch.setattr("app.api.routes.whatsapp.settings.whatsapp_verify_token", "secret-token")
 
@@ -88,4 +93,46 @@ def test_webhook_handles_non_message_events_gracefully(client, monkeypatch):
         "entry": [{"id": "x", "changes": [{"value": {"statuses": []}, "field": "messages"}]}],
     }
     resp = client.post("/api/whatsapp/webhook", json=payload)
+    assert resp.status_code == 200
+
+
+def test_webhook_rejects_missing_signature_when_app_secret_configured(client, monkeypatch):
+    monkeypatch.setattr("app.api.routes.whatsapp.settings.whatsapp_app_secret", "shh")
+    monkeypatch.setattr("app.api.routes.whatsapp.settings.whatsapp_tenant_id", None)
+
+    payload = {"object": "whatsapp_business_account", "entry": []}
+    resp = client.post("/api/whatsapp/webhook", json=payload)
+    assert resp.status_code == 403
+
+
+def test_webhook_rejects_wrong_signature_when_app_secret_configured(client, monkeypatch):
+    monkeypatch.setattr("app.api.routes.whatsapp.settings.whatsapp_app_secret", "shh")
+    monkeypatch.setattr("app.api.routes.whatsapp.settings.whatsapp_tenant_id", None)
+
+    body = json.dumps({"object": "whatsapp_business_account", "entry": []}).encode()
+    resp = client.post(
+        "/api/whatsapp/webhook",
+        content=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-Hub-Signature-256": "sha256=" + "0" * 64,
+        },
+    )
+    assert resp.status_code == 403
+
+
+def test_webhook_accepts_valid_signature_when_app_secret_configured(client, monkeypatch):
+    monkeypatch.setattr("app.api.routes.whatsapp.settings.whatsapp_app_secret", "shh")
+    monkeypatch.setattr("app.api.routes.whatsapp.settings.whatsapp_tenant_id", None)
+
+    body = json.dumps({"object": "whatsapp_business_account", "entry": []}).encode()
+    signature = hmac.new(b"shh", body, hashlib.sha256).hexdigest()
+    resp = client.post(
+        "/api/whatsapp/webhook",
+        content=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-Hub-Signature-256": f"sha256={signature}",
+        },
+    )
     assert resp.status_code == 200

@@ -39,3 +39,5 @@ services:
         sync: false
       - key: WHATSAPP_TENANT_ID
         sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false

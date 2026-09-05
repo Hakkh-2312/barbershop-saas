@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     whatsapp_verify_token: str | None = None
     whatsapp_access_token: str | None = None
     whatsapp_phone_number_id: str | None = None
+    # Meta App Secret (App Dashboard -> Settings -> Basic), used to verify
+    # the X-Hub-Signature-256 header on incoming webhook POSTs so only Meta
+    # can trigger bookings/cancellations through this endpoint. Signature
+    # verification is skipped (with a warning) if this isn't set.
+    whatsapp_app_secret: str | None = None
     # Which tenant this WhatsApp Business number belongs to. There's no
     # phone-number-to-tenant routing yet, so one WhatsApp number = one shop
     # until multiple shops are actually onboarded onto WhatsApp.

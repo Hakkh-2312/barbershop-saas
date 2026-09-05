@@ -1,9 +1,13 @@
+import hashlib
+import hmac
+import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.db.session import get_db
 from app.services.whatsapp_client import send_whatsapp_message
 from app.services.whatsapp_flow import handle_message
@@ -11,6 +15,15 @@ from app.services.whatsapp_flow import handle_message
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
+
+
+def _has_valid_signature(body: bytes, signature_header: str | None, app_secret: str) -> bool:
+    if not signature_header or not signature_header.startswith("sha256="):
+        return False
+
+    expected = hmac.new(app_secret.encode(), body, hashlib.sha256).hexdigest()
+    provided = signature_header.removeprefix("sha256=")
+    return hmac.compare_digest(expected, provided)
 
 
 @router.get("/webhook")
@@ -29,13 +42,26 @@ def verify_webhook(
 
 
 @router.post("/webhook")
+@limiter.limit("120/minute")
 async def receive_message(request: Request, db: Session = Depends(get_db)):
     """Meta POSTs here for every event we've subscribed to (currently just
     "messages"). No per-tenant routing yet - WHATSAPP_TENANT_ID says which
     single shop this WhatsApp number belongs to; mapping many numbers to
     many tenants is future work once more than one shop is on WhatsApp.
     """
-    payload = await request.json()
+    body = await request.body()
+
+    if settings.whatsapp_app_secret:
+        signature = request.headers.get("x-hub-signature-256")
+        if not _has_valid_signature(body, signature, settings.whatsapp_app_secret):
+            logger.warning("Rejected WhatsApp webhook POST with invalid signature")
+            raise HTTPException(status_code=403, detail="Invalid signature")
+    else:
+        logger.warning(
+            "WHATSAPP_APP_SECRET not set - webhook signature verification is disabled"
+        )
+
+    payload = json.loads(body)
 
     for entry in payload.get("entry", []):
         for change in entry.get("changes", []):
