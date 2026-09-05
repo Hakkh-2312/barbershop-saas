@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { apiGet, apiPost, apiDelete, ApiError } from "@/lib/api";
 import { formatTime } from "@/lib/format";
+import { useLanguage } from "@/lib/i18n";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
@@ -11,6 +12,7 @@ import { BlockIcon } from "@/components/icons";
 import type { TimeBlock } from "@/lib/types";
 
 export default function TimeOffPage() {
+  const { t } = useLanguage();
   const [blocks, setBlocks] = useState<TimeBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,20 +75,17 @@ export default function TimeOffPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Time Off"
-        description="Block off periods when you're unavailable - customers won't be able to book into them, on WhatsApp or the API."
-      />
+      <PageHeader title={t("timeOff.title")} description={t("timeOff.description")} />
 
       <Card>
-        <h2 className="mb-4 text-sm font-semibold text-slate-900">Add a block</h2>
+        <h2 className="mb-4 text-sm font-semibold text-slate-900">{t("timeOff.addHeading")}</h2>
         <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-sm">
-            Date
+            {t("timeOff.date")}
             <Input required type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            From
+            {t("timeOff.from")}
             <Input
               required
               type="time"
@@ -95,19 +94,19 @@ export default function TimeOffPage() {
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            To
+            {t("timeOff.to")}
             <Input required type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
           </label>
           <label className="flex flex-1 min-w-[10rem] flex-col gap-1 text-sm">
-            Reason (optional)
+            {t("timeOff.reasonOptional")}
             <Input
-              placeholder="Doctor's appointment"
+              placeholder={t("timeOff.reasonPlaceholder")}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
             />
           </label>
           <Button type="submit" disabled={submitting}>
-            {submitting ? "Adding..." : "Add block"}
+            {submitting ? t("common.adding") : t("timeOff.addBlock")}
           </Button>
         </form>
       </Card>
@@ -116,9 +115,9 @@ export default function TimeOffPage() {
 
       <Card className="p-0">
         {loading ? (
-          <p className="p-5 text-sm text-slate-500">Loading...</p>
+          <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>
         ) : upcoming.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">No blocked periods.</p>
+          <p className="p-5 text-sm text-slate-500">{t("timeOff.noneBlocked")}</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {upcoming.map((b) => (
@@ -131,7 +130,7 @@ export default function TimeOffPage() {
                   {b.reason && <p className="truncate text-sm text-slate-500">{b.reason}</p>}
                 </div>
                 <Button variant="danger" onClick={() => handleDelete(b.id)}>
-                  Remove
+                  {t("timeOff.remove")}
                 </Button>
               </li>
             ))}

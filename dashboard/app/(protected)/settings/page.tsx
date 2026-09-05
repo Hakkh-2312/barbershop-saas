@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { apiGet, apiPatch, ApiError } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
@@ -9,6 +10,7 @@ import { Input } from "@/components/Input";
 import type { Tenant } from "@/lib/types";
 
 export default function SettingsPage() {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,6 +19,7 @@ export default function SettingsPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [countryCode, setCountryCode] = useState("");
 
   async function load() {
     setLoading(true);
@@ -26,6 +29,7 @@ export default function SettingsPage() {
       setName(tenant.name);
       setPhone(tenant.phone ?? "");
       setAddress(tenant.address ?? "");
+      setCountryCode(tenant.country_code ?? "");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load shop settings");
     } finally {
@@ -47,6 +51,7 @@ export default function SettingsPage() {
         name,
         phone: phone || null,
         address: address || null,
+        country_code: countryCode || null,
       });
       setSaved(true);
     } catch (err) {
@@ -58,22 +63,19 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Shop Settings"
-        description="Shown to customers on WhatsApp when they ask to call you or for your address."
-      />
+      <PageHeader title={t("settings.title")} description={t("settings.description")} />
 
       <Card className="max-w-md">
         {loading ? (
-          <p className="text-sm text-slate-500">Loading...</p>
+          <p className="text-sm text-slate-500">{t("common.loading")}</p>
         ) : (
           <form onSubmit={handleSave} className="flex flex-col gap-4">
             <label className="flex flex-col gap-1 text-sm">
-              Shop name
+              {t("settings.shopName")}
               <Input required value={name} onChange={(e) => setName(e.target.value)} />
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              Phone number
+              {t("settings.phone")}
               <Input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -81,19 +83,28 @@ export default function SettingsPage() {
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              Address
+              {t("settings.address")}
               <Input
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="123 Main St, City"
               />
             </label>
+            <label className="flex flex-col gap-1 text-sm">
+              {t("settings.countryCode")}
+              <Input
+                value={countryCode}
+                onChange={(e) => setCountryCode(e.target.value)}
+                placeholder="972"
+              />
+              <span className="text-xs text-slate-500">{t("settings.countryCodeHelp")}</span>
+            </label>
 
             {error && <p className="text-sm text-red-600">{error}</p>}
-            {saved && !error && <p className="text-sm text-emerald-600">Saved.</p>}
+            {saved && !error && <p className="text-sm text-emerald-600">{t("settings.saved")}</p>}
 
             <Button type="submit" disabled={saving} className="self-start">
-              {saving ? "Saving..." : "Save"}
+              {saving ? t("common.saving") : t("common.save")}
             </Button>
           </form>
         )}

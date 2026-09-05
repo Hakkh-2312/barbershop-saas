@@ -10,9 +10,9 @@ export function todayIso(): string {
   return `${year}-${month}-${day}`;
 }
 
-export function formatDateLong(iso: string): string {
+export function formatDateLong(iso: string, locale: string = "en-US"): string {
   const [year, month, day] = iso.split("-").map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+  return new Date(year, month - 1, day).toLocaleDateString(locale, {
     weekday: "long",
     month: "long",
     day: "numeric",

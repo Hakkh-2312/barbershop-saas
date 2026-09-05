@@ -52,6 +52,7 @@ def _enrich_one(db: Session, appointment: Appointment) -> AppointmentRead:
         customer_id=appointment.customer_id,
         service_id=appointment.service_id,
         customer_name=customer.name if customer else "",
+        customer_phone=customer.phone if customer else "",
         service_name=service.name if service else "",
         start_time=appointment.start_time,
         end_time=appointment.end_time,
@@ -63,8 +64,8 @@ def _enrich_many(db: Session, appointments: list[Appointment]) -> list[Appointme
     customer_ids = {a.customer_id for a in appointments}
     service_ids = {a.service_id for a in appointments}
 
-    customer_names = {
-        c.id: c.name
+    customers = {
+        c.id: c
         for c in (
             db.query(Customer).filter(Customer.id.in_(customer_ids)).all()
             if customer_ids
@@ -83,7 +84,8 @@ def _enrich_many(db: Session, appointments: list[Appointment]) -> list[Appointme
             id=a.id,
             customer_id=a.customer_id,
             service_id=a.service_id,
-            customer_name=customer_names.get(a.customer_id, ""),
+            customer_name=customers[a.customer_id].name if a.customer_id in customers else "",
+            customer_phone=customers[a.customer_id].phone if a.customer_id in customers else "",
             service_name=service_names.get(a.service_id, ""),
             start_time=a.start_time,
             end_time=a.end_time,

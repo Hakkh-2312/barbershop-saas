@@ -3,15 +3,20 @@
 import { useEffect, useState, useCallback } from "react";
 import { apiGet, apiPost, ApiError } from "@/lib/api";
 import { formatTime } from "@/lib/format";
+import { useLanguage } from "@/lib/i18n";
+import { toWhatsAppLink } from "@/lib/whatsapp";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { StatusBadge } from "@/components/StatusBadge";
-import type { Appointment } from "@/lib/types";
+import { WhatsAppIcon } from "@/components/icons";
+import type { Appointment, Tenant } from "@/lib/types";
 
 export default function AppointmentsPage() {
+  const { t } = useLanguage();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState("");
@@ -27,7 +32,12 @@ export default function AppointmentsPage() {
       if (dateFilter) params.set("date", dateFilter);
       if (statusFilter) params.set("status", statusFilter);
       const query = params.toString() ? `?${params.toString()}` : "";
-      setAppointments(await apiGet<Appointment[]>(`/api/appointments${query}`));
+      const [appts, myTenant] = await Promise.all([
+        apiGet<Appointment[]>(`/api/appointments${query}`),
+        apiGet<Tenant>("/api/tenants/me"),
+      ]);
+      setAppointments(appts);
+      setTenant(myTenant);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load appointments");
     } finally {
@@ -63,7 +73,7 @@ export default function AppointmentsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Appointments" description="Every booking for your shop, past and upcoming." />
+      <PageHeader title={t("appointments.title")} description={t("appointments.description")} />
 
       <Card>
         <div className="flex flex-wrap gap-3">
@@ -73,10 +83,10 @@ export default function AppointmentsPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
-            <option value="">All statuses</option>
-            <option value="booked">Booked</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="completed">Completed</option>
+            <option value="">{t("appointments.allStatuses")}</option>
+            <option value="booked">{t("status.booked")}</option>
+            <option value="cancelled">{t("status.cancelled")}</option>
+            <option value="completed">{t("status.completed")}</option>
           </select>
         </div>
       </Card>
@@ -85,9 +95,9 @@ export default function AppointmentsPage() {
 
       <Card className="p-0">
         {loading ? (
-          <p className="p-5 text-sm text-slate-500">Loading...</p>
+          <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>
         ) : appointments.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">No appointments found.</p>
+          <p className="p-5 text-sm text-slate-500">{t("appointments.noneFound")}</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {appointments.map((a) => (
@@ -96,6 +106,15 @@ export default function AppointmentsPage() {
                   {a.start_time.slice(0, 10)}
                   <div className="text-slate-900">{formatTime(a.start_time)}</div>
                 </div>
+                <a
+                  href={toWhatsAppLink(a.customer_phone, tenant?.country_code)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={t("common.whatsapp")}
+                  className="shrink-0 text-emerald-600 hover:text-emerald-700"
+                >
+                  <WhatsAppIcon className="h-5 w-5" />
+                </a>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-slate-900">{a.customer_name}</p>
                   <p className="truncate text-sm text-slate-500">{a.service_name}</p>
@@ -112,7 +131,7 @@ export default function AppointmentsPage() {
                           className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900"
                         />
                         <Button variant="secondary" onClick={() => handleReschedule(a.id)}>
-                          Save
+                          {t("common.save")}
                         </Button>
                       </>
                     ) : (
@@ -123,11 +142,11 @@ export default function AppointmentsPage() {
                           setRescheduleValue(a.start_time.slice(0, 16));
                         }}
                       >
-                        Reschedule
+                        {t("appointments.reschedule")}
                       </Button>
                     )}
                     <Button variant="danger" onClick={() => handleCancel(a.id)}>
-                      Cancel
+                      {t("common.cancel")}
                     </Button>
                   </div>
                 )}

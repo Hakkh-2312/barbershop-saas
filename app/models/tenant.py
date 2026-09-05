@@ -12,3 +12,7 @@ class Tenant(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Digits-only country calling code (e.g. "972"), used to turn a
+    # customer's locally-formatted phone number (e.g. "0501234567") into a
+    # full international number for WhatsApp deep links.
+    country_code: Mapped[str | None] = mapped_column(String(10), nullable=True)

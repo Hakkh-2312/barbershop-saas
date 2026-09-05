@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { apiGet, apiPost, apiPatch, apiDelete, ApiError } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
@@ -9,6 +10,7 @@ import { Input } from "@/components/Input";
 import type { Customer } from "@/lib/types";
 
 export default function CustomersPage() {
+  const { t } = useLanguage();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,24 +88,24 @@ export default function CustomersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Customers" description="Everyone who's booked with your shop." />
+      <PageHeader title={t("customers.title")} description={t("customers.description")} />
 
       <Card>
-        <h2 className="mb-4 text-sm font-semibold text-slate-900">Add a customer</h2>
+        <h2 className="mb-4 text-sm font-semibold text-slate-900">{t("customers.addHeading")}</h2>
         <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-sm">
-            Name
+            {t("customers.name")}
             <Input required value={name} onChange={(e) => setName(e.target.value)} />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            Phone
+            {t("customers.phone")}
             <Input required value={phone} onChange={(e) => setPhone(e.target.value)} />
           </label>
           <label className="flex flex-1 min-w-[10rem] flex-col gap-1 text-sm">
-            Email (optional)
+            {t("customers.emailOptional")}
             <Input value={email} onChange={(e) => setEmail(e.target.value)} />
           </label>
-          <Button type="submit">Add</Button>
+          <Button type="submit">{t("common.add")}</Button>
         </form>
       </Card>
 
@@ -111,9 +113,9 @@ export default function CustomersPage() {
 
       <Card className="p-0">
         {loading ? (
-          <p className="p-5 text-sm text-slate-500">Loading...</p>
+          <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>
         ) : customers.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">No customers yet.</p>
+          <p className="p-5 text-sm text-slate-500">{t("customers.noneYet")}</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {customers.map((c) => (
@@ -137,10 +139,10 @@ export default function CustomersPage() {
                     />
                     <div className="flex gap-2">
                       <Button variant="secondary" onClick={() => handleSaveEdit(c.id)}>
-                        Save
+                        {t("common.save")}
                       </Button>
                       <Button variant="ghost" onClick={() => setEditingId(null)}>
-                        Cancel
+                        {t("common.cancel")}
                       </Button>
                     </div>
                   </>
@@ -155,10 +157,10 @@ export default function CustomersPage() {
                     </div>
                     <div className="flex shrink-0 gap-2">
                       <Button variant="secondary" onClick={() => startEdit(c)}>
-                        Edit
+                        {t("common.edit")}
                       </Button>
                       <Button variant="danger" onClick={() => handleDelete(c.id)}>
-                        Delete
+                        {t("common.delete")}
                       </Button>
                     </div>
                   </>

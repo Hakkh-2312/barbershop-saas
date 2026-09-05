@@ -6,6 +6,7 @@ def test_get_my_tenant(client, auth_headers):
     assert body["name"] == "Get Test Shop"
     assert body["phone"] is None
     assert body["address"] is None
+    assert body["country_code"] is None
 
 
 def test_update_my_tenant(client, auth_headers):
@@ -13,16 +14,18 @@ def test_update_my_tenant(client, auth_headers):
     resp = client.patch(
         "/api/tenants/me",
         headers=headers,
-        json={"phone": "+972501234567", "address": "123 Main St"},
+        json={"phone": "+972501234567", "address": "123 Main St", "country_code": "972"},
     )
     assert resp.status_code == 200
     body = resp.json()
     assert body["phone"] == "+972501234567"
     assert body["address"] == "123 Main St"
+    assert body["country_code"] == "972"
     assert body["name"] == "Update Test Shop"
 
     refetched = client.get("/api/tenants/me", headers=headers).json()
     assert refetched["phone"] == "+972501234567"
+    assert refetched["country_code"] == "972"
 
 
 def test_get_my_tenant_requires_auth(client):

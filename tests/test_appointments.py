@@ -16,6 +16,9 @@ def test_create_appointment_persists(client, shop, db_session):
     body = resp.json()
     assert body["status"] == "booked"
     assert body["end_time"] == "2026-09-10T11:20:00"
+    assert body["customer_name"] == "Regular Customer"
+    assert body["customer_phone"] == "0501234567"
+    assert body["service_name"] == "Haircut"
 
     row = db_session.query(Appointment).filter(Appointment.id == body["id"]).first()
     assert row is not None

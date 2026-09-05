@@ -20,6 +20,7 @@ class AppointmentRead(BaseModel):
     customer_id: int
     service_id: int
     customer_name: str
+    customer_phone: str
     service_name: str
     start_time: datetime
     end_time: datetime

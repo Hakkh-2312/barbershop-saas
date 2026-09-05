@@ -2,21 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { apiGet, apiPut, ApiError } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
 import type { WorkingHours } from "@/lib/types";
-
-// Backend convention: Sunday = 0, Monday = 1, ..., Saturday = 6.
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
 
 interface DayRow {
   day_of_week: number;
@@ -35,6 +25,7 @@ const DEFAULT_ROW = (day: number): DayRow => ({
 });
 
 export default function WorkingHoursPage() {
+  const { t } = useLanguage();
   const [rows, setRows] = useState<DayRow[]>(
     Array.from({ length: 7 }, (_, day) => DEFAULT_ROW(day))
   );
@@ -98,20 +89,22 @@ export default function WorkingHoursPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Working Hours" description="When your shop is open for bookings." />
+      <PageHeader title={t("workingHours.title")} description={t("workingHours.description")} />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <Card className="p-0">
         {loading ? (
-          <p className="p-5 text-sm text-slate-500">Loading...</p>
+          <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {rows.map((row) => (
               <li key={row.day_of_week} className="flex flex-wrap items-center gap-4 p-4">
                 <div className="w-28 shrink-0 text-sm font-medium text-slate-900">
-                  {DAY_NAMES[row.day_of_week]}
-                  {!row.saved && <span className="ml-1.5 text-xs text-slate-400">(not set)</span>}
+                  {t(`workingHours.day.${row.day_of_week}`)}
+                  {!row.saved && (
+                    <span className="ml-1.5 text-xs text-slate-400">{t("workingHours.notSet")}</span>
+                  )}
                 </div>
                 <input
                   type="time"
@@ -120,7 +113,7 @@ export default function WorkingHoursPage() {
                   onChange={(e) => updateRow(row.day_of_week, { start_time: e.target.value })}
                   className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 disabled:opacity-40"
                 />
-                <span className="text-sm text-slate-400">to</span>
+                <span className="text-sm text-slate-400">{t("workingHours.to")}</span>
                 <input
                   type="time"
                   value={row.end_time}
@@ -134,7 +127,7 @@ export default function WorkingHoursPage() {
                     checked={row.is_closed}
                     onChange={(e) => updateRow(row.day_of_week, { is_closed: e.target.checked })}
                   />
-                  Closed
+                  {t("workingHours.closed")}
                 </label>
                 <Button
                   variant="secondary"
@@ -142,7 +135,7 @@ export default function WorkingHoursPage() {
                   onClick={() => handleSave(row.day_of_week)}
                   disabled={savingDay === row.day_of_week}
                 >
-                  {savingDay === row.day_of_week ? "Saving..." : "Save"}
+                  {savingDay === row.day_of_week ? t("common.saving") : t("common.save")}
                 </Button>
               </li>
             ))}

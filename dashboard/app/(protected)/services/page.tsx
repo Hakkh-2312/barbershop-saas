@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { apiGet, apiPost, apiPatch, apiDelete, ApiError } from "@/lib/api";
+import { useLanguage } from "@/lib/i18n";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
@@ -9,6 +10,7 @@ import { Input } from "@/components/Input";
 import type { Service } from "@/lib/types";
 
 export default function ServicesPage() {
+  const { t } = useLanguage();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,17 +92,17 @@ export default function ServicesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Services" description="What customers can book, with duration and price." />
+      <PageHeader title={t("services.title")} description={t("services.description")} />
 
       <Card>
-        <h2 className="mb-4 text-sm font-semibold text-slate-900">Add a service</h2>
+        <h2 className="mb-4 text-sm font-semibold text-slate-900">{t("services.addHeading")}</h2>
         <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-3">
           <label className="flex flex-1 min-w-[10rem] flex-col gap-1 text-sm">
-            Name
+            {t("customers.name")}
             <Input required value={name} onChange={(e) => setName(e.target.value)} />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            Duration (min)
+            {t("services.duration")}
             <Input
               required
               type="number"
@@ -111,7 +113,7 @@ export default function ServicesPage() {
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            Price (₪)
+            {t("services.price")}
             <Input
               required
               type="number"
@@ -121,7 +123,7 @@ export default function ServicesPage() {
               onChange={(e) => setPrice(e.target.value)}
             />
           </label>
-          <Button type="submit">Add</Button>
+          <Button type="submit">{t("common.add")}</Button>
         </form>
       </Card>
 
@@ -129,9 +131,9 @@ export default function ServicesPage() {
 
       <Card className="p-0">
         {loading ? (
-          <p className="p-5 text-sm text-slate-500">Loading...</p>
+          <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>
         ) : services.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">No services yet.</p>
+          <p className="p-5 text-sm text-slate-500">{t("services.noneYet")}</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {services.map((s) => (
@@ -159,10 +161,10 @@ export default function ServicesPage() {
                     />
                     <div className="flex gap-2">
                       <Button variant="secondary" onClick={() => handleSaveEdit(s.id)}>
-                        Save
+                        {t("common.save")}
                       </Button>
                       <Button variant="ghost" onClick={() => setEditingId(null)}>
-                        Cancel
+                        {t("common.cancel")}
                       </Button>
                     </div>
                   </>
@@ -171,15 +173,15 @@ export default function ServicesPage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-slate-900">{s.name}</p>
                       <p className="truncate text-sm text-slate-500">
-                        {s.duration_minutes} min · {s.price} ₪
+                        {s.duration_minutes} {t("common.min")} · {s.price} ₪
                       </p>
                     </div>
                     <div className="flex shrink-0 gap-2">
                       <Button variant="secondary" onClick={() => startEdit(s)}>
-                        Edit
+                        {t("common.edit")}
                       </Button>
                       <Button variant="danger" onClick={() => handleDelete(s.id)}>
-                        Delete
+                        {t("common.delete")}
                       </Button>
                     </div>
                   </>
