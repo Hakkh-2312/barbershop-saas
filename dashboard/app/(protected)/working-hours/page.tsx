@@ -118,7 +118,7 @@ export default function WorkingHoursPage() {
                   value={row.start_time}
                   disabled={row.is_closed}
                   onChange={(e) => updateRow(row.day_of_week, { start_time: e.target.value })}
-                  className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm disabled:opacity-40"
+                  className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 disabled:opacity-40"
                 />
                 <span className="text-sm text-slate-400">to</span>
                 <input
@@ -126,7 +126,7 @@ export default function WorkingHoursPage() {
                   value={row.end_time}
                   disabled={row.is_closed}
                   onChange={(e) => updateRow(row.day_of_week, { end_time: e.target.value })}
-                  className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm disabled:opacity-40"
+                  className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 disabled:opacity-40"
                 />
                 <label className="flex items-center gap-1.5 text-sm text-slate-600">
                   <input

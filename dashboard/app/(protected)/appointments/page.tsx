@@ -109,7 +109,7 @@ export default function AppointmentsPage() {
                           type="datetime-local"
                           value={rescheduleValue}
                           onChange={(e) => setRescheduleValue(e.target.value)}
-                          className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900"
                         />
                         <Button variant="secondary" onClick={() => handleReschedule(a.id)}>
                           Save
