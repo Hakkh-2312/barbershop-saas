@@ -180,6 +180,27 @@ If `WHATSAPP_TENANT_ID` is unset, incoming messages just get a static
 "coming soon" reply instead of the booking flow — safe default until you've
 set up a real shop to receive bookings.
 
+## Deploying (Render + Vercel)
+
+1. **Database**: create a separate Supabase project for production (never
+   reuse the dev one) and apply migrations to it: `DATABASE_URL=<prod-url> uv run alembic upgrade head`.
+2. **API → Render**: New → Blueprint → pick this repo. Render reads
+   `render.yaml` and prompts for the `sync: false` values (prod
+   `DATABASE_URL`, a freshly generated `JWT_SECRET_KEY`, `CORS_ALLOWED_ORIGINS`
+   as a placeholder for now, the real `WHATSAPP_*` values). Deploy → you get
+   a `https://<name>.onrender.com` URL. `render.yaml`'s `dockerCommand` runs
+   migrations on every boot and binds to Render's `$PORT`.
+3. **Dashboard → Vercel**: New Project → import this repo → set **Root
+   Directory** to `dashboard` → env var `NEXT_PUBLIC_API_URL` = the Render
+   URL → deploy → you get a `https://<name>.vercel.app` URL.
+4. Back on Render, update `CORS_ALLOWED_ORIGINS` to that Vercel URL and
+   redeploy.
+5. Update Meta's WhatsApp webhook callback URL to
+   `https://<render-url>/api/whatsapp/webhook` (same verify token) — no
+   more ngrok, and it stops changing on every restart.
+6. Sign up a real shop through the live dashboard, then set `WHATSAPP_TENANT_ID`
+   on Render to that tenant's id.
+
 ## Configuration reference
 
 Beyond `DATABASE_URL` and `JWT_SECRET_KEY`, see `.env.example` for:
