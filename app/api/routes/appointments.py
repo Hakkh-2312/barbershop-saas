@@ -2,7 +2,6 @@ from datetime import date as date_type
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_tenant_id
@@ -11,7 +10,7 @@ from app.models.appointment import Appointment
 from app.models.customer import Customer
 from app.models.service import Service
 from app.schemas.appointment import AppointmentCreate, AppointmentRead, AppointmentReschedule
-from app.services.booking import BookingError, check_slot_available, create_booking
+from app.services.booking import BookingError, create_booking, reschedule_booking
 
 router = APIRouter(
     prefix="/appointments",
@@ -24,6 +23,7 @@ _STATUS_BY_ERROR_CODE = {
     "outside_hours": 422,
     "blocked": 422,
     "conflict": 409,
+    "not_booked": 409,
 }
 
 
@@ -176,30 +176,9 @@ def reschedule_appointment(
 ):
     appointment = _get_appointment_or_404(db, appointment_id, tenant_id)
 
-    if appointment.status != "booked":
-        raise HTTPException(
-            status_code=409, detail=f"Cannot reschedule a {appointment.status} appointment"
-        )
-
-    service = db.query(Service).filter(Service.id == appointment.service_id).first()
-
     try:
-        end_time = check_slot_available(
-            db, tenant_id, service, payload.start_time, exclude_appointment_id=appointment.id
-        )
+        appointment = reschedule_booking(db, tenant_id, appointment, payload.start_time)
     except BookingError as err:
         _raise_for_booking_error(err)
 
-    appointment.start_time = payload.start_time
-    appointment.end_time = end_time
-
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=409, detail="This time slot is no longer available"
-        )
-
-    db.refresh(appointment)
     return _enrich_one(db, appointment)

@@ -43,6 +43,13 @@ class WhatsappConversation(TimestampMixin, Base):
 
     selected_date: Mapped[date | None] = mapped_column(nullable=True)
 
+    # Set while asking "cancel or reschedule?" about an existing booking,
+    # and while picking a new date/time for it in the reschedule sub-flow.
+    selected_appointment_id: Mapped[int | None] = mapped_column(
+        ForeignKey("appointments.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+
     # Reused contextually for whichever list `state` currently points at
     # (service/date/slot) - reset to 0 whenever a new list is first shown.
     page: Mapped[int] = mapped_column(nullable=False, default=0)

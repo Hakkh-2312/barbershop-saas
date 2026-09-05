@@ -134,6 +134,42 @@ def create_booking(
     return appointment
 
 
+def reschedule_booking(
+    db: Session,
+    tenant_id: int,
+    appointment: Appointment,
+    new_start_time: datetime,
+) -> Appointment:
+    if appointment.status != "booked":
+        raise BookingError(
+            "not_booked", f"Cannot reschedule a {appointment.status} appointment"
+        )
+
+    service = (
+        db.query(Service)
+        .filter(Service.id == appointment.service_id, Service.tenant_id == tenant_id)
+        .first()
+    )
+    if not service:
+        raise BookingError("not_found", "Service not found")
+
+    end_time = check_slot_available(
+        db, tenant_id, service, new_start_time, exclude_appointment_id=appointment.id
+    )
+
+    appointment.start_time = new_start_time
+    appointment.end_time = end_time
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise BookingError("conflict", "This time slot is no longer available")
+
+    db.refresh(appointment)
+    return appointment
+
+
 def get_available_slots(
     db: Session,
     tenant_id: int,

@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
+from app.models.appointment import Appointment
 from app.models.customer import Customer
 from app.models.service import Service
 from app.models.tenant import Tenant
@@ -11,6 +12,7 @@ from app.services.booking import (
     create_booking,
     get_available_dates,
     get_available_slots,
+    reschedule_booking,
 )
 from app.services.whatsapp_client import send_whatsapp_interactive_list, send_whatsapp_message
 from app.services.whatsapp_i18n import (
@@ -35,6 +37,14 @@ def handle_message(
 ) -> None:
     conversation = _get_or_create_conversation(db, tenant_id, from_number)
 
+    if conversation.state == "awaiting_name" and message.get("type") == "text":
+        name = message.get("text", {}).get("body", "").strip()
+        if name:
+            _register_customer(db, conversation, name)
+        else:
+            _render_ask_name(conversation)
+        return
+
     selection_id = None
     if message.get("type") == "interactive":
         interactive = message.get("interactive", {})
@@ -47,6 +57,12 @@ def handle_message(
             return
         if selection_id.startswith("lang:") and conversation.state == "choosing_language":
             _handle_language_selection(db, conversation, selection_id)
+            return
+        if (
+            selection_id.startswith("appt:")
+            and conversation.state == "awaiting_appointment_action"
+        ):
+            _handle_appointment_action(db, conversation, selection_id)
             return
         if (
             selection_id.startswith(("service:", "more_services:"))
@@ -116,8 +132,150 @@ def _render_current_state(db: Session, conversation: WhatsappConversation) -> No
         _render_date_list(db, conversation)
     elif conversation.state == "awaiting_slot":
         _render_slot_list(db, conversation)
+    elif conversation.state == "awaiting_name":
+        _render_ask_name(conversation)
+    elif conversation.state == "awaiting_appointment_action":
+        _render_appointment_action(db, conversation)
     else:
-        _render_main_menu(db, conversation)
+        _render_entry(db, conversation)
+
+
+def _find_customer(db: Session, tenant_id: int, phone_number: str) -> Customer | None:
+    return (
+        db.query(Customer)
+        .filter(Customer.tenant_id == tenant_id, Customer.phone == phone_number)
+        .first()
+    )
+
+
+def _find_upcoming_appointment(
+    db: Session, tenant_id: int, customer_id: int
+) -> Appointment | None:
+    return (
+        db.query(Appointment)
+        .filter(
+            Appointment.tenant_id == tenant_id,
+            Appointment.customer_id == customer_id,
+            Appointment.status == "booked",
+            Appointment.start_time >= datetime.now(),
+        )
+        .order_by(Appointment.start_time)
+        .first()
+    )
+
+
+def _render_entry(db: Session, conversation: WhatsappConversation) -> None:
+    """The default landing spot for a message that isn't part of an
+    in-progress selection (a fresh "hi", or one that reset back to
+    main_menu) - decides whether this is a first-time contact who needs to
+    register a name, a returning customer with an upcoming appointment to
+    manage, or just the normal main menu."""
+    customer = _find_customer(db, conversation.tenant_id, conversation.phone_number)
+
+    if not customer:
+        conversation.state = "awaiting_name"
+        db.commit()
+        _render_ask_name(conversation)
+        return
+
+    appointment = _find_upcoming_appointment(db, conversation.tenant_id, customer.id)
+    if appointment:
+        conversation.state = "awaiting_appointment_action"
+        conversation.selected_appointment_id = appointment.id
+        db.commit()
+        _render_appointment_action(db, conversation)
+        return
+
+    _render_main_menu(db, conversation)
+
+
+def _render_ask_name(conversation: WhatsappConversation) -> None:
+    send_whatsapp_message(conversation.phone_number, t(conversation.language, "ask_name"))
+
+
+def _register_customer(db: Session, conversation: WhatsappConversation, name: str) -> None:
+    existing = _find_customer(db, conversation.tenant_id, conversation.phone_number)
+    if not existing:
+        db.add(
+            Customer(
+                tenant_id=conversation.tenant_id,
+                name=name[:255],
+                phone=conversation.phone_number,
+            )
+        )
+    conversation.state = "main_menu"
+    db.commit()
+    _render_entry(db, conversation)
+
+
+def _render_appointment_action(db: Session, conversation: WhatsappConversation) -> None:
+    lang = conversation.language
+    appointment = (
+        db.query(Appointment)
+        .filter(
+            Appointment.id == conversation.selected_appointment_id,
+            Appointment.tenant_id == conversation.tenant_id,
+        )
+        .first()
+    )
+    if not appointment or appointment.status != "booked":
+        _show_main_menu(db, conversation)
+        return
+
+    service = db.query(Service).filter(Service.id == appointment.service_id).first()
+
+    rows = [
+        {"id": "appt:reschedule", "title": t(lang, "appt_reschedule")},
+        {"id": "appt:cancel", "title": t(lang, "appt_cancel")},
+    ]
+    send_whatsapp_interactive_list(
+        to=conversation.phone_number,
+        header=t(lang, "appt_header"),
+        body=t(
+            lang,
+            "appt_body",
+            service_name=service.name if service else "",
+            date=format_date_full(lang, appointment.start_time.date()),
+            time=appointment.start_time.strftime("%H:%M"),
+        ),
+        button_text=t(lang, "menu_button"),
+        sections=[{"title": t(lang, "appt_header"), "rows": rows}],
+    )
+
+
+def _handle_appointment_action(
+    db: Session, conversation: WhatsappConversation, selection_id: str
+) -> None:
+    action = selection_id.split(":", 1)[1]
+    lang = conversation.language
+
+    appointment = (
+        db.query(Appointment)
+        .filter(
+            Appointment.id == conversation.selected_appointment_id,
+            Appointment.tenant_id == conversation.tenant_id,
+        )
+        .first()
+    )
+    if not appointment or appointment.status != "booked":
+        _show_main_menu(db, conversation)
+        return
+
+    if action == "cancel":
+        appointment.status = "cancelled"
+        db.commit()
+        send_whatsapp_message(conversation.phone_number, t(lang, "appt_cancelled"))
+        _show_main_menu(db, conversation)
+        return
+
+    if action == "reschedule":
+        conversation.selected_service_id = appointment.service_id
+        conversation.selected_date = None
+        conversation.state = "awaiting_date"
+        conversation.page = 0
+        db.commit()
+        _render_date_list(db, conversation)
+        return
 
 
 def _reset_to_main_menu(conversation: WhatsappConversation) -> None:
@@ -128,15 +286,20 @@ def _reset_to_main_menu(conversation: WhatsappConversation) -> None:
     conversation.page = 0
     conversation.selected_service_id = None
     conversation.selected_date = None
+    conversation.selected_appointment_id = None
 
 
 def _show_main_menu(db: Session, conversation: WhatsappConversation) -> None:
-    """Reset and immediately (re-)send the main menu - used for recovery
-    paths (an error, a dead end) where proactively re-offering the menu is
-    more helpful than leaving the customer to message in again."""
+    """Reset and immediately re-render the entry point - used for recovery
+    paths (an error, a dead end) where proactively re-offering something is
+    more helpful than leaving the customer to message in again. Goes
+    through _render_entry (not straight to the main menu) so a customer
+    who still has some other upcoming appointment is offered cancel/
+    reschedule for it rather than "book" - the same check a fresh message
+    would get."""
     _reset_to_main_menu(conversation)
     db.commit()
-    _render_main_menu(db, conversation)
+    _render_entry(db, conversation)
 
 
 def _render_main_menu(db: Session, conversation: WhatsappConversation) -> None:
@@ -167,6 +330,14 @@ def _handle_menu_selection(
     lang = conversation.language
 
     if action == "book":
+        if not _find_customer(db, conversation.tenant_id, conversation.phone_number):
+            # Stale button tap from an unregistered number - register their
+            # name first rather than letting them book anonymously.
+            conversation.state = "awaiting_name"
+            db.commit()
+            _render_ask_name(conversation)
+            return
+
         conversation.state = "awaiting_service"
         conversation.page = 0
         conversation.selected_service_id = None
@@ -398,6 +569,10 @@ def _handle_slot_selection(
     lang = conversation.language
     start_time = datetime.fromisoformat(value)
 
+    if conversation.selected_appointment_id:
+        _handle_reschedule_slot(db, conversation, start_time)
+        return
+
     customer = (
         db.query(Customer)
         .filter(
@@ -449,5 +624,51 @@ def _handle_slot_selection(
     # Per spec: the conversation just ends here - no menu re-push. The
     # customer sees it again next time they message in (main_menu is the
     # fallback _render_current_state renders).
+    _reset_to_main_menu(conversation)
+    db.commit()
+
+
+def _handle_reschedule_slot(
+    db: Session, conversation: WhatsappConversation, start_time: datetime
+) -> None:
+    lang = conversation.language
+
+    appointment = (
+        db.query(Appointment)
+        .filter(
+            Appointment.id == conversation.selected_appointment_id,
+            Appointment.tenant_id == conversation.tenant_id,
+        )
+        .first()
+    )
+    if not appointment:
+        _show_main_menu(db, conversation)
+        return
+
+    try:
+        appointment = reschedule_booking(db, conversation.tenant_id, appointment, start_time)
+    except BookingError as err:
+        if err.code == "conflict":
+            send_whatsapp_message(conversation.phone_number, t(lang, "booking_conflict"))
+        else:
+            send_whatsapp_message(conversation.phone_number, t(lang, "booking_error"))
+        _show_main_menu(db, conversation)
+        return
+
+    service = db.query(Service).filter(Service.id == appointment.service_id).first()
+    tenant = db.query(Tenant).filter(Tenant.id == conversation.tenant_id).first()
+
+    send_whatsapp_message(
+        conversation.phone_number,
+        t(
+            lang,
+            "reschedule_summary",
+            shop_name=tenant.name if tenant else "",
+            service_name=service.name if service else "",
+            price=service.price if service else "",
+            date=format_date_full(lang, appointment.start_time.date()),
+            time=appointment.start_time.strftime("%H:%M"),
+        ),
+    )
     _reset_to_main_menu(conversation)
     db.commit()

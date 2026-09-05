@@ -42,6 +42,16 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "call_not_set": "عذراً، رقم الهاتف غير متوفر حالياً.",
         "address_reply": "📍 عنواننا:\n{address}",
         "address_not_set": "عذراً، العنوان غير متوفر حالياً.",
+        "ask_name": "قبل أن نبدأ، ما اسمك؟",
+        "appt_header": "موعدك الحالي",
+        "appt_body": "لديك موعد: {service_name}\n📅 {date}\n🕐 {time}\nماذا تريد أن تفعل؟",
+        "appt_reschedule": "إعادة الجدولة",
+        "appt_cancel": "إلغاء الموعد",
+        "appt_cancelled": "تم إلغاء موعدك. ✅",
+        "reschedule_summary": (
+            "تم تعديل موعدك بنجاح! ✅\n{shop_name}\n{service_name} - {price} ₪\n"
+            "📅 {date}\n🕐 {time}\nنراكم قريباً!"
+        ),
     },
     "he": {
         "welcome_header": "תפריט ראשי",
@@ -76,6 +86,16 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "call_not_set": "מצטערים, מספר הטלפון אינו זמין כרגע.",
         "address_reply": "📍 הכתובת שלנו:\n{address}",
         "address_not_set": "מצטערים, הכתובת אינה זמינה כרגע.",
+        "ask_name": "לפני שנתחיל, מה השם שלך?",
+        "appt_header": "התור שלך",
+        "appt_body": "יש לך תור: {service_name}\n📅 {date}\n🕐 {time}\nמה תרצו לעשות?",
+        "appt_reschedule": "שינוי מועד",
+        "appt_cancel": "ביטול התור",
+        "appt_cancelled": "התור בוטל. ✅",
+        "reschedule_summary": (
+            "התור עודכן בהצלחה! ✅\n{shop_name}\n{service_name} - {price} ₪\n"
+            "📅 {date}\n🕐 {time}\nנתראה בקרוב!"
+        ),
     },
     "en": {
         "welcome_header": "Main Menu",
@@ -110,6 +130,19 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "call_not_set": "Sorry, no phone number is set up yet.",
         "address_reply": "📍 Our address:\n{address}",
         "address_not_set": "Sorry, no address is set up yet.",
+        "ask_name": "Before we start, what's your name?",
+        "appt_header": "Your appointment",
+        "appt_body": (
+            "You have an appointment: {service_name}\n📅 {date}\n🕐 {time}\n"
+            "What would you like to do?"
+        ),
+        "appt_reschedule": "Reschedule",
+        "appt_cancel": "Cancel appointment",
+        "appt_cancelled": "Your appointment has been cancelled. ✅",
+        "reschedule_summary": (
+            "Your appointment has been updated! ✅\n{shop_name}\n{service_name} - {price} ₪\n"
+            "📅 {date}\n🕐 {time}\nSee you soon!"
+        ),
     },
 }
 
