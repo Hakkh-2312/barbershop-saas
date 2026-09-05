@@ -1,0 +1,5 @@
+# Shell scripts must keep LF line endings regardless of the checkout
+# platform's core.autocrlf setting - a CRLF shebang breaks under /bin/sh
+# in the Linux container (e.g. Render's build), even though it looks fine
+# on Windows.
+*.sh text eol=lf

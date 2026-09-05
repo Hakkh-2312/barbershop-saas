@@ -5,11 +5,13 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     plan: free
-    # Migrations run before every boot - alembic upgrade head is a safe
-    # no-op if the database is already current. Binds to Render's injected
+    # Render does not run dockerCommand through a shell (a bare "a && b"
+    # gets passed to "a" as literal argv, not interpreted) - so this runs
+    # a real shell script instead. It applies migrations before every boot
+    # (a safe no-op if already current) and binds to Render's injected
     # $PORT (defaults to 10000); the Dockerfile's own CMD (hardcoded to
     # 8000, for local docker-compose) is overridden here, not changed.
-    dockerCommand: "uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    dockerCommand: "sh scripts/start.sh"
     envVars:
       - key: DATABASE_URL
         sync: false
