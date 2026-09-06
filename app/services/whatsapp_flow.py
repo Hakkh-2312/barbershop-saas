@@ -15,7 +15,11 @@ from app.services.booking import (
     reschedule_booking,
 )
 from app.services.notifications import notify_barber, resolve_phone_number_id
-from app.services.reminders import CANCEL_BUTTON_PAYLOAD, cancel_via_reminder_button
+from app.services.reminders import (
+    CANCEL_BUTTON_PAYLOAD,
+    CANCEL_BUTTON_TITLES,
+    cancel_via_reminder_button,
+)
 from app.services.whatsapp_client import send_whatsapp_interactive_list, send_whatsapp_message
 from app.services.whatsapp_i18n import (
     DEFAULT_LANGUAGE,
@@ -28,6 +32,13 @@ from app.services.whatsapp_i18n import (
 # WhatsApp list messages cap at 10 rows total; the 10th is reserved for a
 # "more options" row when there's a next page.
 PAGE_SIZE = 9
+
+
+def _is_reminder_cancel_button(button_reply: dict) -> bool:
+    return (
+        button_reply.get("id") == CANCEL_BUTTON_PAYLOAD
+        or button_reply.get("title", "").strip() in CANCEL_BUTTON_TITLES
+    )
 
 
 def _send_text(db: Session, conversation: WhatsappConversation, body: str) -> None:
@@ -67,7 +78,7 @@ def handle_message(
 
     if message.get("type") == "interactive":
         button_reply = message.get("interactive", {}).get("button_reply")
-        if button_reply and button_reply.get("id") == CANCEL_BUTTON_PAYLOAD:
+        if button_reply and _is_reminder_cancel_button(button_reply):
             cancelled = cancel_via_reminder_button(db, tenant_id, from_number)
             if cancelled:
                 _send_text(db, conversation, t(conversation.language, "appt_cancelled"))

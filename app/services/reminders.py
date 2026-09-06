@@ -27,6 +27,11 @@ _META_TEMPLATE_LANGUAGE = {"ar": "ar", "he": "he", "en": "en_US"}
 # who's replying (see cancel_via_reminder_button below).
 CANCEL_BUTTON_PAYLOAD = "CANCEL_APPOINTMENT"
 
+# Fallback match on the button's visible text, in case WhatsApp Manager
+# doesn't let a custom payload be set for a quick-reply button and just
+# echoes the button's own label back as its id instead.
+CANCEL_BUTTON_TITLES = {"Cancel appointment", "إلغاء الموعد", "ביטול התור"}
+
 
 def send_due_reminders(db: Session) -> int:
     """Sends a day-before reminder (with a Cancel button) to every
