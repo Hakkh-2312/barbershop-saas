@@ -10,7 +10,9 @@ import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
 import { StatusBadge } from "@/components/StatusBadge";
-import { BlockIcon, WhatsAppIcon } from "@/components/icons";
+import { Skeleton, SkeletonList } from "@/components/Skeleton";
+import { EmptyState } from "@/components/EmptyState";
+import { BlockIcon, WhatsAppIcon, HomeIcon } from "@/components/icons";
 import type { Appointment, Tenant, TimeBlock } from "@/lib/types";
 
 type ScheduleItem =
@@ -111,14 +113,24 @@ export default function TodayPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Card>
           <p className="text-sm text-slate-500">{t("today.appointmentsToday")}</p>
-          <p className="mt-1 text-3xl font-semibold text-slate-900">{activeAppointments.length}</p>
+          {loading ? (
+            <Skeleton className="mt-2 h-8 w-10" />
+          ) : (
+            <p className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
+              {activeAppointments.length}
+            </p>
+          )}
         </Card>
         <Card>
           <p className="text-sm text-slate-500">{t("today.nextUp")}</p>
-          <p className="mt-1 text-3xl font-semibold text-slate-900">
-            {nextUp ? formatTime(nextUp.start_time) : "—"}
-          </p>
-          {nextUp && <p className="text-sm text-slate-500">{nextUp.data.customer_name}</p>}
+          {loading ? (
+            <Skeleton className="mt-2 h-8 w-16" />
+          ) : (
+            <p className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
+              {nextUp ? formatTime(nextUp.start_time) : "—"}
+            </p>
+          )}
+          {!loading && nextUp && <p className="text-sm text-slate-500">{nextUp.data.customer_name}</p>}
         </Card>
       </div>
 
@@ -126,13 +138,16 @@ export default function TodayPage() {
 
       <Card className="p-0">
         {loading ? (
-          <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>
+          <SkeletonList rows={4} />
         ) : items.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">{t("today.nothingScheduled")}</p>
+          <EmptyState icon={HomeIcon} title={t("today.nothingScheduled")} />
         ) : (
           <ul className="divide-y divide-slate-100">
             {items.map((item) => (
-              <li key={`${item.kind}-${item.data.id}`} className="flex items-center gap-4 p-4">
+              <li
+                key={`${item.kind}-${item.data.id}`}
+                className="flex flex-wrap items-center gap-3 p-4"
+              >
                 <div className="w-14 shrink-0 text-sm font-medium text-slate-500">
                   {formatTime(item.start_time)}
                 </div>
@@ -174,7 +189,7 @@ export default function TodayPage() {
                               type="datetime-local"
                               value={rescheduleValue}
                               onChange={(e) => setRescheduleValue(e.target.value)}
-                              className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900"
+                              className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 transition-shadow duration-150 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/25"
                             />
                             <Button variant="secondary" onClick={() => handleReschedule(item.data.id)}>
                               {t("common.save")}

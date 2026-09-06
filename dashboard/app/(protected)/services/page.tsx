@@ -7,6 +7,9 @@ import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { SkeletonList } from "@/components/Skeleton";
+import { EmptyState } from "@/components/EmptyState";
+import { TagIcon } from "@/components/icons";
 import type { Service } from "@/lib/types";
 
 export default function ServicesPage() {
@@ -131,9 +134,9 @@ export default function ServicesPage() {
 
       <Card className="p-0">
         {loading ? (
-          <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>
+          <SkeletonList rows={3} />
         ) : services.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">{t("services.noneYet")}</p>
+          <EmptyState icon={TagIcon} title={t("services.noneYet")} />
         ) : (
           <ul className="divide-y divide-slate-100">
             {services.map((s) => (

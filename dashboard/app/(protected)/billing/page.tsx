@@ -7,6 +7,7 @@ import { useLanguage } from "@/lib/i18n";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
+import { Skeleton } from "@/components/Skeleton";
 import type { Tenant } from "@/lib/types";
 
 export default function BillingPage() {
@@ -107,7 +108,10 @@ export default function BillingPage() {
 
       <Card className="max-w-md">
         {loading ? (
-          <p className="text-sm text-slate-500">{t("common.loading")}</p>
+          <div className="flex flex-col gap-4">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-9 w-28 rounded-lg" />
+          </div>
         ) : (
           <div className="flex flex-col gap-4">
             <p

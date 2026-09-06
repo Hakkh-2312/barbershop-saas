@@ -6,6 +6,7 @@ import { useLanguage } from "@/lib/i18n";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
+import { SkeletonList } from "@/components/Skeleton";
 import type { WorkingHours } from "@/lib/types";
 
 interface DayRow {
@@ -95,7 +96,7 @@ export default function WorkingHoursPage() {
 
       <Card className="p-0">
         {loading ? (
-          <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>
+          <SkeletonList rows={7} />
         ) : (
           <ul className="divide-y divide-slate-100">
             {rows.map((row) => (
@@ -111,7 +112,7 @@ export default function WorkingHoursPage() {
                   value={row.start_time}
                   disabled={row.is_closed}
                   onChange={(e) => updateRow(row.day_of_week, { start_time: e.target.value })}
-                  className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 disabled:opacity-40"
+                  className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 transition-shadow duration-150 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 disabled:opacity-40"
                 />
                 <span className="text-sm text-slate-400">{t("workingHours.to")}</span>
                 <input
@@ -119,7 +120,7 @@ export default function WorkingHoursPage() {
                   value={row.end_time}
                   disabled={row.is_closed}
                   onChange={(e) => updateRow(row.day_of_week, { end_time: e.target.value })}
-                  className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 disabled:opacity-40"
+                  className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 transition-shadow duration-150 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 disabled:opacity-40"
                 />
                 <label className="flex items-center gap-1.5 text-sm text-slate-600">
                   <input

@@ -6,7 +6,13 @@ import { useLanguage } from "@/lib/i18n";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/Input";
+import { Button } from "@/components/Button";
+import { Skeleton } from "@/components/Skeleton";
 import type { AnalyticsOverview } from "@/lib/types";
+
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(amount);
+}
 
 type Range = "today" | "week" | "month" | "custom";
 
@@ -57,19 +63,15 @@ export default function AnalyticsPage() {
 
       <Card>
         <div className="flex flex-wrap items-end gap-3">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {rangeOptions.map((opt) => (
-              <button
+              <Button
                 key={opt.value}
+                variant={range === opt.value ? "primary" : "secondary"}
                 onClick={() => setRange(opt.value)}
-                className={`rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
-                  range === opt.value
-                    ? "bg-indigo-600 text-white"
-                    : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50"
-                }`}
               >
                 {opt.label}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -99,26 +101,39 @@ export default function AnalyticsPage() {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {loading ? (
-        <p className="text-sm text-slate-500">{t("common.loading")}</p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <Skeleton className="h-3.5 w-24" />
+              <Skeleton className="mt-2 h-8 w-16" />
+            </Card>
+          ))}
+        </div>
       ) : data ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <p className="text-sm text-slate-500">{t("analytics.revenue")}</p>
-            <p className="mt-1 text-3xl font-semibold text-slate-900">₪{data.revenue}</p>
+            <p className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
+              ₪{formatCurrency(data.revenue)}
+            </p>
           </Card>
           <Card>
             <p className="text-sm text-slate-500">{t("analytics.newCustomers")}</p>
-            <p className="mt-1 text-3xl font-semibold text-slate-900">{data.new_customers}</p>
+            <p className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
+              {data.new_customers}
+            </p>
           </Card>
           <Card>
             <p className="text-sm text-slate-500">{t("analytics.returningCustomers")}</p>
-            <p className="mt-1 text-3xl font-semibold text-slate-900">
+            <p className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
               {data.returning_customers}
             </p>
           </Card>
           <Card>
             <p className="text-sm text-slate-500">{t("analytics.totalCustomers")}</p>
-            <p className="mt-1 text-3xl font-semibold text-slate-900">{data.total_customers}</p>
+            <p className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
+              {data.total_customers}
+            </p>
           </Card>
         </div>
       ) : null}

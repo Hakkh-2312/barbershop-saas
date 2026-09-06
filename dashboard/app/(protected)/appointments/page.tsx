@@ -10,7 +10,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { StatusBadge } from "@/components/StatusBadge";
-import { WhatsAppIcon } from "@/components/icons";
+import { SkeletonList } from "@/components/Skeleton";
+import { EmptyState } from "@/components/EmptyState";
+import { WhatsAppIcon, CalendarIcon } from "@/components/icons";
 import type { Appointment, Tenant } from "@/lib/types";
 
 export default function AppointmentsPage() {
@@ -91,7 +93,7 @@ export default function AppointmentsPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 transition-shadow duration-150 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/25"
           >
             <option value="">{t("appointments.allStatuses")}</option>
             <option value="booked">{t("status.booked")}</option>
@@ -106,9 +108,9 @@ export default function AppointmentsPage() {
 
       <Card className="p-0">
         {loading ? (
-          <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>
+          <SkeletonList rows={4} />
         ) : appointments.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">{t("appointments.noneFound")}</p>
+          <EmptyState icon={CalendarIcon} title={t("appointments.noneFound")} />
         ) : (
           <ul className="divide-y divide-slate-100">
             {appointments.map((a) => (
@@ -139,7 +141,7 @@ export default function AppointmentsPage() {
                           type="datetime-local"
                           value={rescheduleValue}
                           onChange={(e) => setRescheduleValue(e.target.value)}
-                          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900"
+                          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 transition-shadow duration-150 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/25"
                         />
                         <Button variant="secondary" onClick={() => handleReschedule(a.id)}>
                           {t("common.save")}

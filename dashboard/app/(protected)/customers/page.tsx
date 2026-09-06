@@ -7,6 +7,9 @@ import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { SkeletonList } from "@/components/Skeleton";
+import { EmptyState } from "@/components/EmptyState";
+import { UsersIcon } from "@/components/icons";
 import type { Customer } from "@/lib/types";
 
 export default function CustomersPage() {
@@ -93,17 +96,17 @@ export default function CustomersPage() {
       <Card>
         <h2 className="mb-4 text-sm font-semibold text-slate-900">{t("customers.addHeading")}</h2>
         <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex flex-1 min-w-[9rem] flex-col gap-1 text-sm">
             {t("customers.name")}
-            <Input required value={name} onChange={(e) => setName(e.target.value)} />
+            <Input required className="w-full" value={name} onChange={(e) => setName(e.target.value)} />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex flex-1 min-w-[9rem] flex-col gap-1 text-sm">
             {t("customers.phone")}
-            <Input required value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <Input required className="w-full" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </label>
           <label className="flex flex-1 min-w-[10rem] flex-col gap-1 text-sm">
             {t("customers.emailOptional")}
-            <Input value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input className="w-full" value={email} onChange={(e) => setEmail(e.target.value)} />
           </label>
           <Button type="submit">{t("common.add")}</Button>
         </form>
@@ -113,9 +116,9 @@ export default function CustomersPage() {
 
       <Card className="p-0">
         {loading ? (
-          <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>
+          <SkeletonList rows={3} />
         ) : customers.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">{t("customers.noneYet")}</p>
+          <EmptyState icon={UsersIcon} title={t("customers.noneYet")} />
         ) : (
           <ul className="divide-y divide-slate-100">
             {customers.map((c) => (

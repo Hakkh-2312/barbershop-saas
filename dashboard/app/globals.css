@@ -4,6 +4,7 @@
   color-scheme: light;
   --background: #f8fafc;
   --foreground: #0f172a;
+  --focus-ring: #6366f1;
 }
 
 @theme inline {
@@ -16,5 +17,44 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+/* Safety-net focus ring for anything that doesn't define its own (native
+   checkboxes, links, etc.) - components with their own focus-visible
+   treatment (Button, Input) override this locally. Using :focus-visible
+   rather than :focus means it only shows for keyboard/assistive
+   navigation, not every mouse click. */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Native checkboxes (e.g. Working Hours' "Closed" toggle) get the app's
+   accent color instead of the browser's default blue/gray, without
+   needing a custom-built control - accent-color keeps full native
+   keyboard/screen-reader behavior. */
+input[type="checkbox"] {
+  accent-color: var(--focus-ring);
+}
+
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-dropdown-in {
+  animation: dropdown-in 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-dropdown-in {
+    animation: none;
+  }
 }

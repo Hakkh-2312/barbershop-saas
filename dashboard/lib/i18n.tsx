@@ -71,6 +71,8 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     "nav.timeOff": "Time Off",
     "nav.settings": "Settings",
     "nav.logout": "Log out",
+    "nav.openMenu": "Open menu",
+    "nav.closeMenu": "Close menu",
 
     "today.blockOffTime": "Block off time",
     "today.appointmentsToday": "Appointments today",
@@ -222,6 +224,8 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     "nav.timeOff": "إجازة",
     "nav.settings": "الإعدادات",
     "nav.logout": "تسجيل الخروج",
+    "nav.openMenu": "فتح القائمة",
+    "nav.closeMenu": "إغلاق القائمة",
 
     "today.blockOffTime": "حجب وقت",
     "today.appointmentsToday": "مواعيد اليوم",

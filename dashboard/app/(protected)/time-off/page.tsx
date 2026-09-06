@@ -8,6 +8,8 @@ import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { SkeletonList } from "@/components/Skeleton";
+import { EmptyState } from "@/components/EmptyState";
 import { BlockIcon } from "@/components/icons";
 import type { TimeBlock } from "@/lib/types";
 
@@ -115,9 +117,9 @@ export default function TimeOffPage() {
 
       <Card className="p-0">
         {loading ? (
-          <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>
+          <SkeletonList rows={2} />
         ) : upcoming.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">{t("timeOff.noneBlocked")}</p>
+          <EmptyState icon={BlockIcon} title={t("timeOff.noneBlocked")} />
         ) : (
           <ul className="divide-y divide-slate-100">
             {upcoming.map((b) => (

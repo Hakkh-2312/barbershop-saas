@@ -7,6 +7,7 @@ import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { Skeleton } from "@/components/Skeleton";
 import type { Tenant } from "@/lib/types";
 
 export default function SettingsPage() {
@@ -70,7 +71,14 @@ export default function SettingsPage() {
 
       <Card className="max-w-md">
         {loading ? (
-          <p className="text-sm text-slate-500">{t("common.loading")}</p>
+          <div className="flex flex-col gap-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex flex-col gap-1.5">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-9 w-full rounded-lg" />
+              </div>
+            ))}
+          </div>
         ) : (
           <form onSubmit={handleSave} className="flex flex-col gap-4">
             <label className="flex flex-col gap-1 text-sm">
