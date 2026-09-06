@@ -78,6 +78,16 @@ export default function TodayPage() {
     }
   }
 
+  async function handleNoShow(id: number) {
+    setError(null);
+    try {
+      await apiPost(`/api/appointments/${id}/no-show`);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to mark as no-show");
+    }
+  }
+
   const activeAppointments = items.filter(
     (i) => i.kind === "appointment" && i.data.status === "booked"
   ) as { kind: "appointment"; start_time: string; data: Appointment }[];
@@ -184,6 +194,11 @@ export default function TodayPage() {
                         <Button variant="danger" onClick={() => handleCancel(item.data.id)}>
                           {t("common.cancel")}
                         </Button>
+                        {new Date(item.data.start_time) < new Date() && (
+                          <Button variant="ghost" onClick={() => handleNoShow(item.data.id)}>
+                            {t("common.noShow")}
+                          </Button>
+                        )}
                       </div>
                     )}
                   </>

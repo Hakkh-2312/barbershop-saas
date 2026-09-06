@@ -52,3 +52,21 @@ export interface TimeBlock {
   end_time: string;
   reason: string | null;
 }
+
+export interface Notification {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  appointment_id: number | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface AnalyticsOverview {
+  range: { start: string; end: string };
+  revenue: number;
+  new_customers: number;
+  returning_customers: number;
+  total_customers: number;
+}

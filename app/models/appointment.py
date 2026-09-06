@@ -48,7 +48,7 @@ class Appointment(TimestampMixin, Base):
 
     __table_args__ = (
         CheckConstraint(
-            "status IN ('booked', 'cancelled', 'completed')",
+            "status IN ('booked', 'cancelled', 'completed', 'no_show')",
             name="ck_appointments_status",
         ),
         # Belt-and-braces against the double-booking race the app-level

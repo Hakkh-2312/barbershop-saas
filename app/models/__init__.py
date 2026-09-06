@@ -1,5 +1,6 @@
 from app.models.appointment import Appointment
 from app.models.customer import Customer
+from app.models.notification import Notification
 from app.models.service import Service
 from app.models.tenant import Tenant
 from app.models.time_block import TimeBlock
@@ -16,4 +17,5 @@ __all__ = [
     "User",
     "WhatsappConversation",
     "TimeBlock",
+    "Notification",
 ]

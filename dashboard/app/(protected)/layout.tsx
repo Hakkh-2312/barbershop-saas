@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { useLanguage } from "@/lib/i18n";
 import { apiGet } from "@/lib/api";
 import type { Tenant } from "@/lib/types";
+import { NotificationBell } from "@/components/NotificationBell";
 import {
   HomeIcon,
   CalendarIcon,
@@ -14,6 +15,7 @@ import {
   TagIcon,
   ClockIcon,
   BlockIcon,
+  ChartIcon,
   GearIcon,
   LogoutIcon,
 } from "@/components/icons";
@@ -25,6 +27,7 @@ const NAV_LINKS = [
   { href: "/services", key: "nav.services", icon: TagIcon },
   { href: "/working-hours", key: "nav.workingHours", icon: ClockIcon },
   { href: "/time-off", key: "nav.timeOff", icon: BlockIcon },
+  { href: "/analytics", key: "nav.analytics", icon: ChartIcon },
   { href: "/settings", key: "nav.settings", icon: GearIcon },
 ];
 
@@ -99,7 +102,12 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
           </button>
         </div>
       </aside>
-      <main className="min-w-0 flex-1 overflow-y-auto p-8">{children}</main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex justify-end border-b border-slate-200 bg-white px-6 py-2.5">
+          <NotificationBell />
+        </header>
+        <main className="min-w-0 flex-1 overflow-y-auto p-8">{children}</main>
+      </div>
     </div>
   );
 }

@@ -9,8 +9,11 @@ from app.db.session import get_db
 from app.models.appointment import Appointment
 from app.models.customer import Customer
 from app.models.service import Service
+from app.models.tenant import Tenant
 from app.schemas.appointment import AppointmentCreate, AppointmentRead, AppointmentReschedule
 from app.services.booking import BookingError, create_booking, reschedule_booking
+from app.services.notifications import customer_language, notify_customer
+from app.services.whatsapp_i18n import format_date_full, t
 
 router = APIRouter(
     prefix="/appointments",
@@ -95,6 +98,40 @@ def _enrich_many(db: Session, appointments: list[Appointment]) -> list[Appointme
     ]
 
 
+def _notify_customer_of_appointment(
+    db: Session,
+    tenant_id: int,
+    appointment: Appointment,
+    translation_key: str,
+) -> None:
+    """Sends a WhatsApp confirmation to the customer for an action the
+    barber just took from the dashboard (create/cancel/reschedule) - the
+    same courtesy they'd get automatically if they'd done it through the
+    bot themselves."""
+    customer = db.query(Customer).filter(Customer.id == appointment.customer_id).first()
+    if not customer:
+        return
+
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    service = db.query(Service).filter(Service.id == appointment.service_id).first()
+    lang = customer_language(db, tenant_id, customer.phone)
+
+    notify_customer(
+        db,
+        tenant_id,
+        customer.phone,
+        t(
+            lang,
+            translation_key,
+            shop_name=tenant.name if tenant else "",
+            service_name=service.name if service else "",
+            price=service.price if service else "",
+            date=format_date_full(lang, appointment.start_time.date()),
+            time=appointment.start_time.strftime("%H:%M"),
+        ),
+    )
+
+
 @router.post("", response_model=AppointmentRead, status_code=201)
 def create_appointment(
     appointment: AppointmentCreate,
@@ -111,6 +148,10 @@ def create_appointment(
         )
     except BookingError as err:
         _raise_for_booking_error(err)
+
+    _notify_customer_of_appointment(
+        db, tenant_id, new_appointment, "dashboard_booking_confirmation"
+    )
 
     return _enrich_one(db, new_appointment)
 
@@ -164,6 +205,11 @@ def cancel_appointment(
     appointment.status = "cancelled"
     db.commit()
     db.refresh(appointment)
+
+    _notify_customer_of_appointment(
+        db, tenant_id, appointment, "dashboard_cancellation_confirmation"
+    )
+
     return _enrich_one(db, appointment)
 
 
@@ -181,4 +227,32 @@ def reschedule_appointment(
     except BookingError as err:
         _raise_for_booking_error(err)
 
+    _notify_customer_of_appointment(
+        db, tenant_id, appointment, "dashboard_reschedule_confirmation"
+    )
+
+    return _enrich_one(db, appointment)
+
+
+@router.post("/{appointment_id}/no-show", response_model=AppointmentRead)
+def mark_appointment_no_show(
+    appointment_id: int,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    appointment = _get_appointment_or_404(db, appointment_id, tenant_id)
+
+    if appointment.status != "booked":
+        raise HTTPException(
+            status_code=409, detail=f"Appointment is already {appointment.status}"
+        )
+
+    if appointment.start_time > datetime.now():
+        raise HTTPException(
+            status_code=422, detail="Cannot mark a future appointment as a no-show"
+        )
+
+    appointment.status = "no_show"
+    db.commit()
+    db.refresh(appointment)
     return _enrich_one(db, appointment)

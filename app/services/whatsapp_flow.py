@@ -2,7 +2,6 @@ from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.models.appointment import Appointment
 from app.models.customer import Customer
 from app.models.service import Service
@@ -15,6 +14,7 @@ from app.services.booking import (
     get_available_slots,
     reschedule_booking,
 )
+from app.services.notifications import notify_barber, resolve_phone_number_id
 from app.services.whatsapp_client import send_whatsapp_interactive_list, send_whatsapp_message
 from app.services.whatsapp_i18n import (
     DEFAULT_LANGUAGE,
@@ -29,22 +29,11 @@ from app.services.whatsapp_i18n import (
 PAGE_SIZE = 9
 
 
-def _resolve_phone_number_id(db: Session, tenant_id: int) -> str | None:
-    """Each tenant can have their own connected WhatsApp number
-    (Tenant.whatsapp_phone_number_id); falls back to the single legacy
-    WHATSAPP_PHONE_NUMBER_ID env var for a tenant that hasn't set one -
-    keeps the original single-shop setup working unchanged."""
-    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
-    if tenant and tenant.whatsapp_phone_number_id:
-        return tenant.whatsapp_phone_number_id
-    return settings.whatsapp_phone_number_id
-
-
 def _send_text(db: Session, conversation: WhatsappConversation, body: str) -> None:
     send_whatsapp_message(
         conversation.phone_number,
         body,
-        phone_number_id=_resolve_phone_number_id(db, conversation.tenant_id),
+        phone_number_id=resolve_phone_number_id(db, conversation.tenant_id),
     )
 
 
@@ -62,7 +51,7 @@ def _send_list(
         body=body,
         button_text=button_text,
         sections=sections,
-        phone_number_id=_resolve_phone_number_id(db, conversation.tenant_id),
+        phone_number_id=resolve_phone_number_id(db, conversation.tenant_id),
     )
 
 
@@ -304,6 +293,27 @@ def _handle_appointment_action(
         appointment.status = "cancelled"
         db.commit()
         _send_text(db, conversation, t(lang, "appt_cancelled"))
+
+        customer = (
+            db.query(Customer)
+            .filter(
+                Customer.tenant_id == conversation.tenant_id,
+                Customer.phone == conversation.phone_number,
+            )
+            .first()
+        )
+        service = db.query(Service).filter(Service.id == appointment.service_id).first()
+        notify_barber(
+            db,
+            conversation.tenant_id,
+            "cancellation",
+            "Appointment cancelled",
+            f"{customer.name if customer else conversation.phone_number} cancelled "
+            f"{service.name if service else 'their appointment'} on "
+            f"{appointment.start_time.strftime('%b %d at %H:%M')}.",
+            appointment_id=appointment.id,
+        )
+
         _show_main_menu(db, conversation)
         return
 
@@ -664,6 +674,15 @@ def _handle_slot_selection(
             time=appointment.start_time.strftime("%H:%M"),
         ),
     )
+    notify_barber(
+        db,
+        conversation.tenant_id,
+        "new_booking",
+        "New booking",
+        f"{customer.name} booked {service.name if service else 'an appointment'} on "
+        f"{appointment.start_time.strftime('%b %d at %H:%M')}.",
+        appointment_id=appointment.id,
+    )
     # Per spec: the conversation just ends here - no menu re-push. The
     # customer sees it again next time they message in (main_menu is the
     # fallback _render_current_state renders).
@@ -714,5 +733,25 @@ def _handle_reschedule_slot(
             time=appointment.start_time.strftime("%H:%M"),
         ),
     )
+
+    customer = (
+        db.query(Customer)
+        .filter(
+            Customer.tenant_id == conversation.tenant_id,
+            Customer.phone == conversation.phone_number,
+        )
+        .first()
+    )
+    notify_barber(
+        db,
+        conversation.tenant_id,
+        "reschedule",
+        "Appointment rescheduled",
+        f"{customer.name if customer else conversation.phone_number} moved "
+        f"{service.name if service else 'their appointment'} to "
+        f"{appointment.start_time.strftime('%b %d at %H:%M')}.",
+        appointment_id=appointment.id,
+    )
+
     _reset_to_main_menu(conversation)
     db.commit()

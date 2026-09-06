@@ -52,6 +52,16 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "تم تعديل موعدك بنجاح! ✅\n{shop_name}\n{service_name} - {price} ₪\n"
             "📅 {date}\n🕐 {time}\nنراكم قريباً!"
         ),
+        "dashboard_booking_confirmation": (
+            "تم حجز موعد لك! ✅\n{shop_name}\n{service_name} - {price} ₪\n"
+            "📅 {date}\n🕐 {time}\nنراكم قريباً!"
+        ),
+        "dashboard_cancellation_confirmation": (
+            "تم إلغاء موعدك مع {shop_name} يوم {date} الساعة {time}."
+        ),
+        "dashboard_reschedule_confirmation": (
+            "تم تغيير موعدك مع {shop_name}! ✅\n📅 {date}\n🕐 {time}\nنراكم قريباً!"
+        ),
     },
     "he": {
         "welcome_header": "תפריט ראשי",
@@ -95,6 +105,16 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "reschedule_summary": (
             "התור עודכן בהצלחה! ✅\n{shop_name}\n{service_name} - {price} ₪\n"
             "📅 {date}\n🕐 {time}\nנתראה בקרוב!"
+        ),
+        "dashboard_booking_confirmation": (
+            "נקבע לך תור! ✅\n{shop_name}\n{service_name} - {price} ₪\n"
+            "📅 {date}\n🕐 {time}\nנתראה בקרוב!"
+        ),
+        "dashboard_cancellation_confirmation": (
+            "התור שלך עם {shop_name} בתאריך {date} בשעה {time} בוטל."
+        ),
+        "dashboard_reschedule_confirmation": (
+            "התור שלך עם {shop_name} עודכן! ✅\n📅 {date}\n🕐 {time}\nנתראה בקרוב!"
         ),
     },
     "en": {
@@ -141,6 +161,17 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "appt_cancelled": "Your appointment has been cancelled. ✅",
         "reschedule_summary": (
             "Your appointment has been updated! ✅\n{shop_name}\n{service_name} - {price} ₪\n"
+            "📅 {date}\n🕐 {time}\nSee you soon!"
+        ),
+        "dashboard_booking_confirmation": (
+            "An appointment has been booked for you! ✅\n{shop_name}\n{service_name} - {price} ₪\n"
+            "📅 {date}\n🕐 {time}\nSee you soon!"
+        ),
+        "dashboard_cancellation_confirmation": (
+            "Your appointment with {shop_name} on {date} at {time} has been cancelled."
+        ),
+        "dashboard_reschedule_confirmation": (
+            "Your appointment with {shop_name} has been updated! ✅\n"
             "📅 {date}\n🕐 {time}\nSee you soon!"
         ),
     },

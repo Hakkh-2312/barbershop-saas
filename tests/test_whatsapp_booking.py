@@ -544,3 +544,70 @@ def test_reschedule_conflict_is_handled_gracefully(
     # The original appointment is untouched (the reschedule failed), so
     # they're offered cancel/reschedule for it again, not the main menu.
     assert {r["id"] for r in _rows(capture_sent[-1])} == {"appt:reschedule", "appt:cancel"}
+
+
+def test_booking_via_whatsapp_notifies_the_barber(client, whatsapp_shop, capture_sent, db_session):
+    _headers, tenant_id, service_id = whatsapp_shop
+    phone = "15550001116"
+
+    _onboard(client, phone, name="Notify Test Customer")
+    _book_first_available_slot(client, phone, service_id, capture_sent)
+
+    from app.models.notification import Notification
+
+    notification = (
+        db_session.query(Notification)
+        .filter(Notification.tenant_id == tenant_id, Notification.type == "new_booking")
+        .first()
+    )
+    assert notification is not None
+    assert "Notify Test Customer" in notification.message
+    assert notification.is_read is False
+
+
+def test_cancelling_via_whatsapp_notifies_the_barber(
+    client, whatsapp_shop, capture_sent, db_session
+):
+    _headers, tenant_id, service_id = whatsapp_shop
+    phone = "15550001117"
+
+    _onboard(client, phone, name="Cancel Notify Customer")
+    _book_first_available_slot(client, phone, service_id, capture_sent)
+    client.post("/api/whatsapp/webhook", json=_text_message(phone, "hi again"))
+    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, "appt:cancel"))
+
+    from app.models.notification import Notification
+
+    notification = (
+        db_session.query(Notification)
+        .filter(Notification.tenant_id == tenant_id, Notification.type == "cancellation")
+        .first()
+    )
+    assert notification is not None
+    assert "Cancel Notify Customer" in notification.message
+
+
+def test_rescheduling_via_whatsapp_notifies_the_barber(
+    client, whatsapp_shop, capture_sent, db_session
+):
+    _headers, tenant_id, service_id = whatsapp_shop
+    phone = "15550001118"
+
+    _onboard(client, phone, name="Reschedule Notify Customer")
+    _book_first_available_slot(client, phone, service_id, capture_sent)
+    client.post("/api/whatsapp/webhook", json=_text_message(phone, "hi again"))
+    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, "appt:reschedule"))
+    date_id = _rows(capture_sent[-1])[0]["id"]
+    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, date_id))
+    new_slot_id = _rows(capture_sent[-1])[0]["id"]
+    client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, new_slot_id))
+
+    from app.models.notification import Notification
+
+    notification = (
+        db_session.query(Notification)
+        .filter(Notification.tenant_id == tenant_id, Notification.type == "reschedule")
+        .first()
+    )
+    assert notification is not None
+    assert "Reschedule Notify Customer" in notification.message

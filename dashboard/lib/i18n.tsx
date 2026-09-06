@@ -24,6 +24,28 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     "status.booked": "Booked",
     "status.cancelled": "Cancelled",
     "status.completed": "Completed",
+    "status.no_show": "No-show",
+
+    "common.noShow": "No-show",
+
+    "notifications.title": "Notifications",
+    "notifications.markAllRead": "Mark all read",
+    "notifications.empty": "No notifications yet.",
+
+    "analytics.title": "Analytics",
+    "analytics.description": "How your shop is doing, at a glance.",
+    "analytics.revenue": "Revenue",
+    "analytics.newCustomers": "New customers",
+    "analytics.returningCustomers": "Returning customers",
+    "analytics.totalCustomers": "Total customers",
+    "analytics.today": "Today",
+    "analytics.thisWeek": "This week",
+    "analytics.thisMonth": "This month",
+    "analytics.custom": "Custom",
+    "analytics.from": "From",
+    "analytics.to": "To",
+
+    "nav.analytics": "Analytics",
 
     "nav.shopFallback": "Your Shop",
     "nav.today": "Today",
@@ -138,6 +160,28 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     "status.booked": "محجوز",
     "status.cancelled": "ملغى",
     "status.completed": "مكتمل",
+    "status.no_show": "لم يحضر",
+
+    "common.noShow": "لم يحضر",
+
+    "notifications.title": "الإشعارات",
+    "notifications.markAllRead": "تعليم الكل كمقروء",
+    "notifications.empty": "لا توجد إشعارات بعد.",
+
+    "analytics.title": "التحليلات",
+    "analytics.description": "أداء متجرك، بلمحة سريعة.",
+    "analytics.revenue": "الإيرادات",
+    "analytics.newCustomers": "عملاء جدد",
+    "analytics.returningCustomers": "عملاء عائدون",
+    "analytics.totalCustomers": "إجمالي العملاء",
+    "analytics.today": "اليوم",
+    "analytics.thisWeek": "هذا الأسبوع",
+    "analytics.thisMonth": "هذا الشهر",
+    "analytics.custom": "مخصص",
+    "analytics.from": "من",
+    "analytics.to": "إلى",
+
+    "nav.analytics": "التحليلات",
 
     "nav.shopFallback": "متجرك",
     "nav.today": "اليوم",

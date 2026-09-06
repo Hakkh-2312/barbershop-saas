@@ -9,11 +9,13 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from app.api.routes import (
+    analytics,
     appointments,
     auth,
     availability,
     customers,
     health,
+    notifications,
     services,
     tenants,
     time_blocks,
@@ -67,6 +69,8 @@ app.include_router(working_hours.router, prefix="/api")
 app.include_router(whatsapp.router, prefix="/api")
 app.include_router(tenants.router, prefix="/api")
 app.include_router(time_blocks.router, prefix="/api")
+app.include_router(notifications.router, prefix="/api")
+app.include_router(analytics.router, prefix="/api")
 
 
 @app.get("/")

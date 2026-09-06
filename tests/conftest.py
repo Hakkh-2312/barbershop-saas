@@ -6,6 +6,7 @@ from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker
 
 import app.models  # noqa: F401 - registers all models on Base.metadata
+from app.core.config import settings
 from app.core.limiter import limiter
 from app.db.base import Base
 from app.db.session import get_db
@@ -16,6 +17,17 @@ from app.main import app
 # limiting itself is exercised in test_rate_limiting.py with the limiter
 # re-enabled just for that test.
 limiter.enabled = False
+
+
+@pytest.fixture(autouse=True)
+def _disable_real_whatsapp_sends(monkeypatch):
+    """Without this, any test that hits a route which now sends a WhatsApp
+    notification (e.g. cancelling an appointment from the dashboard) would
+    pick up real credentials from the local .env and make a real network
+    call to Meta's Graph API on every run. WhatsApp-specific test files
+    re-enable this deliberately via their own monkeypatching."""
+    monkeypatch.setattr(settings, "whatsapp_access_token", None)
+    monkeypatch.setattr(settings, "whatsapp_phone_number_id", None)
 
 # Defaults to a local Postgres (e.g. the "db" service in docker-compose.yml).
 # Postgres is required, not optional: the overlap-prevention exclusion

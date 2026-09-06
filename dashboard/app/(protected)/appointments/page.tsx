@@ -71,6 +71,16 @@ export default function AppointmentsPage() {
     }
   }
 
+  async function handleNoShow(id: number) {
+    setError(null);
+    try {
+      await apiPost(`/api/appointments/${id}/no-show`);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to mark as no-show");
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title={t("appointments.title")} description={t("appointments.description")} />
@@ -87,6 +97,7 @@ export default function AppointmentsPage() {
             <option value="booked">{t("status.booked")}</option>
             <option value="cancelled">{t("status.cancelled")}</option>
             <option value="completed">{t("status.completed")}</option>
+            <option value="no_show">{t("status.no_show")}</option>
           </select>
         </div>
       </Card>
@@ -148,6 +159,11 @@ export default function AppointmentsPage() {
                     <Button variant="danger" onClick={() => handleCancel(a.id)}>
                       {t("common.cancel")}
                     </Button>
+                    {new Date(a.start_time) < new Date() && (
+                      <Button variant="ghost" onClick={() => handleNoShow(a.id)}>
+                        {t("common.noShow")}
+                      </Button>
+                    )}
                   </div>
                 )}
               </li>

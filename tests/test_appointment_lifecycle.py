@@ -1,3 +1,8 @@
+from datetime import datetime
+
+from app.models.appointment import Appointment
+
+
 def _book(client, headers, customer_id, service_id, start_time):
     return client.post(
         "/api/appointments",
@@ -156,3 +161,34 @@ def test_cannot_act_on_another_tenants_appointment(client, shop, auth_headers):
         ).status_code
         == 404
     )
+
+
+def test_mark_no_show_succeeds_for_a_past_appointment(client, shop, db_session):
+    headers, customer_id, service_id = shop
+    created = _book(client, headers, customer_id, service_id, "2026-09-10T11:00:00").json()
+
+    appointment = db_session.query(Appointment).filter(Appointment.id == created["id"]).first()
+    appointment.start_time = datetime(2020, 1, 1, 11, 0)
+    appointment.end_time = datetime(2020, 1, 1, 11, 20)
+    db_session.commit()
+
+    resp = client.post(f"/api/appointments/{created['id']}/no-show", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "no_show"
+
+
+def test_mark_no_show_rejected_for_a_future_appointment(client, shop):
+    headers, customer_id, service_id = shop
+    created = _book(client, headers, customer_id, service_id, "2026-09-10T11:00:00").json()
+
+    resp = client.post(f"/api/appointments/{created['id']}/no-show", headers=headers)
+    assert resp.status_code == 422
+
+
+def test_mark_no_show_rejected_for_a_cancelled_appointment(client, shop):
+    headers, customer_id, service_id = shop
+    created = _book(client, headers, customer_id, service_id, "2026-09-10T11:00:00").json()
+    client.post(f"/api/appointments/{created['id']}/cancel", headers=headers)
+
+    resp = client.post(f"/api/appointments/{created['id']}/no-show", headers=headers)
+    assert resp.status_code == 409
