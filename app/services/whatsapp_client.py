@@ -71,3 +71,53 @@ def send_whatsapp_interactive_list(
         response.raise_for_status()
     except httpx.HTTPError:
         logger.exception("Failed to send WhatsApp interactive list to %s", to)
+
+
+def send_whatsapp_template_message(
+    to: str,
+    template_name: str,
+    language_code: str,
+    body_params: list[str],
+    phone_number_id: str | None = None,
+) -> bool:
+    """Templates are the only message type Meta allows a business to send
+    outside the 24h customer-service window (i.e. anything the business
+    initiates, like a reminder, rather than a reply to something the
+    customer just sent) - and they must be pre-approved in WhatsApp
+    Manager with this exact name/language/variable count. Returns True if
+    Meta accepted the send, so callers can decide whether to record it as
+    delivered."""
+    phone_number_id = phone_number_id or settings.whatsapp_phone_number_id
+    if not settings.whatsapp_access_token or not phone_number_id:
+        logger.warning(
+            "WhatsApp access token / phone number id not configured; "
+            "skipping template send to %s",
+            to,
+        )
+        return False
+
+    url = f"https://graph.facebook.com/{WHATSAPP_API_VERSION}/{phone_number_id}/messages"
+    headers = {"Authorization": f"Bearer {settings.whatsapp_access_token}"}
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "template",
+        "template": {
+            "name": template_name,
+            "language": {"code": language_code},
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": [{"type": "text", "text": p} for p in body_params],
+                }
+            ],
+        },
+    }
+
+    try:
+        response = httpx.post(url, headers=headers, json=payload, timeout=10)
+        response.raise_for_status()
+        return True
+    except httpx.HTTPError:
+        logger.exception("Failed to send WhatsApp template message to %s", to)
+        return False

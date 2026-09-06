@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, func
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -45,6 +45,10 @@ class Appointment(TimestampMixin, Base):
         nullable=False,
         default="booked",
     )
+
+    # Guards against sending a customer the same day-before reminder
+    # twice (e.g. if the daily job is retried or accidentally runs again).
+    reminder_sent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     __table_args__ = (
         CheckConstraint(

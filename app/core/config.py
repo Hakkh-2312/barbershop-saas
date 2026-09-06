@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     # until multiple shops are actually onboarded onto WhatsApp.
     whatsapp_tenant_id: int | None = None
 
+    # A shared secret an external scheduler (e.g. a free cron-ping service)
+    # must present to trigger internal jobs like sending appointment
+    # reminders - there's no logged-in user for this kind of request, so
+    # it can't go through the normal JWT auth. Unset means the endpoint
+    # refuses every request.
+    internal_task_secret: str | None = None
+
     @property
     def cors_allowed_origins_list(self) -> list[str]:
         return [

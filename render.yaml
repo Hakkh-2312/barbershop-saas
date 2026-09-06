@@ -41,3 +41,5 @@ services:
         sync: false
       - key: WHATSAPP_APP_SECRET
         sync: false
+      - key: INTERNAL_TASK_SECRET
+        sync: false

@@ -15,6 +15,7 @@ from app.services.booking import (
     reschedule_booking,
 )
 from app.services.notifications import notify_barber, resolve_phone_number_id
+from app.services.reminders import CANCEL_BUTTON_PAYLOAD, cancel_via_reminder_button
 from app.services.whatsapp_client import send_whatsapp_interactive_list, send_whatsapp_message
 from app.services.whatsapp_i18n import (
     DEFAULT_LANGUAGE,
@@ -63,6 +64,14 @@ def handle_message(
     contact_name: str | None,
 ) -> None:
     conversation = _get_or_create_conversation(db, tenant_id, from_number)
+
+    if message.get("type") == "interactive":
+        button_reply = message.get("interactive", {}).get("button_reply")
+        if button_reply and button_reply.get("id") == CANCEL_BUTTON_PAYLOAD:
+            cancelled = cancel_via_reminder_button(db, tenant_id, from_number)
+            if cancelled:
+                _send_text(db, conversation, t(conversation.language, "appt_cancelled"))
+            return
 
     if conversation.state == "awaiting_name" and message.get("type") == "text":
         name = message.get("text", {}).get("body", "").strip()
