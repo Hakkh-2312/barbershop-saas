@@ -43,6 +43,7 @@ export interface Tenant {
   phone: string | null;
   address: string | null;
   country_code: string | null;
+  whatsapp_phone_number_id: string | null;
 }
 
 export interface TimeBlock {

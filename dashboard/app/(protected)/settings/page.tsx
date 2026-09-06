@@ -20,6 +20,7 @@ export default function SettingsPage() {
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [countryCode, setCountryCode] = useState("");
+  const [whatsappNumberId, setWhatsappNumberId] = useState("");
 
   async function load() {
     setLoading(true);
@@ -30,6 +31,7 @@ export default function SettingsPage() {
       setPhone(tenant.phone ?? "");
       setAddress(tenant.address ?? "");
       setCountryCode(tenant.country_code ?? "");
+      setWhatsappNumberId(tenant.whatsapp_phone_number_id ?? "");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load shop settings");
     } finally {
@@ -52,6 +54,7 @@ export default function SettingsPage() {
         phone: phone || null,
         address: address || null,
         country_code: countryCode || null,
+        whatsapp_phone_number_id: whatsappNumberId || null,
       });
       setSaved(true);
     } catch (err) {
@@ -98,6 +101,15 @@ export default function SettingsPage() {
                 placeholder="972"
               />
               <span className="text-xs text-slate-500">{t("settings.countryCodeHelp")}</span>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              {t("settings.whatsappNumberId")}
+              <Input
+                value={whatsappNumberId}
+                onChange={(e) => setWhatsappNumberId(e.target.value)}
+                placeholder="123456123456789"
+              />
+              <span className="text-xs text-slate-500">{t("settings.whatsappNumberIdHelp")}</span>
             </label>
 
             {error && <p className="text-sm text-red-600">{error}</p>}

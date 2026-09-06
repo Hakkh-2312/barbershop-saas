@@ -9,6 +9,7 @@ class TenantRead(BaseModel):
     phone: str | None
     address: str | None
     country_code: str | None
+    whatsapp_phone_number_id: str | None
 
 
 class TenantUpdate(BaseModel):
@@ -16,3 +17,4 @@ class TenantUpdate(BaseModel):
     phone: str | None = None
     address: str | None = None
     country_code: str | None = None
+    whatsapp_phone_number_id: str | None = None

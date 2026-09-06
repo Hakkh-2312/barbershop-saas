@@ -97,6 +97,9 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     "settings.countryCode": "WhatsApp country code",
     "settings.countryCodeHelp":
       "Used to build correct WhatsApp links for customers whose number is saved without one, e.g. 972 for Israel/Palestine.",
+    "settings.whatsappNumberId": "WhatsApp phone number ID",
+    "settings.whatsappNumberIdHelp":
+      "Connects your shop to the WhatsApp booking bot. You'll get this ID after your WhatsApp Business number is set up - paste it here to activate automated booking.",
     "settings.saved": "Saved.",
 
     "login.title": "Log in",
@@ -207,6 +210,9 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     "settings.countryCode": "رمز الدولة لواتساب",
     "settings.countryCodeHelp":
       "يُستخدم لإنشاء روابط واتساب صحيحة للعملاء الذين حُفظ رقمهم بدون رمز الدولة، مثلاً 972 لفلسطين/إسرائيل.",
+    "settings.whatsappNumberId": "معرّف رقم واتساب",
+    "settings.whatsappNumberIdHelp":
+      "يربط متجرك ببوت الحجز عبر واتساب. ستحصل على هذا المعرّف بعد إعداد رقم واتساب بزنس الخاص بك - الصقه هنا لتفعيل الحجز التلقائي.",
     "settings.saved": "تم الحفظ.",
 
     "login.title": "تسجيل الدخول",

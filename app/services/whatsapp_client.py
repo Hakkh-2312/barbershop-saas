@@ -9,8 +9,9 @@ logger = logging.getLogger(__name__)
 WHATSAPP_API_VERSION = "v21.0"
 
 
-def send_whatsapp_message(to: str, body: str) -> None:
-    if not settings.whatsapp_access_token or not settings.whatsapp_phone_number_id:
+def send_whatsapp_message(to: str, body: str, phone_number_id: str | None = None) -> None:
+    phone_number_id = phone_number_id or settings.whatsapp_phone_number_id
+    if not settings.whatsapp_access_token or not phone_number_id:
         logger.warning(
             "WhatsApp access token / phone number id not configured; "
             "skipping send to %s",
@@ -18,10 +19,7 @@ def send_whatsapp_message(to: str, body: str) -> None:
         )
         return
 
-    url = (
-        f"https://graph.facebook.com/{WHATSAPP_API_VERSION}/"
-        f"{settings.whatsapp_phone_number_id}/messages"
-    )
+    url = f"https://graph.facebook.com/{WHATSAPP_API_VERSION}/{phone_number_id}/messages"
     headers = {"Authorization": f"Bearer {settings.whatsapp_access_token}"}
     payload = {
         "messaging_product": "whatsapp",
@@ -43,8 +41,10 @@ def send_whatsapp_interactive_list(
     body: str,
     button_text: str,
     sections: list[dict],
+    phone_number_id: str | None = None,
 ) -> None:
-    if not settings.whatsapp_access_token or not settings.whatsapp_phone_number_id:
+    phone_number_id = phone_number_id or settings.whatsapp_phone_number_id
+    if not settings.whatsapp_access_token or not phone_number_id:
         logger.warning(
             "WhatsApp access token / phone number id not configured; "
             "skipping list send to %s",
@@ -52,10 +52,7 @@ def send_whatsapp_interactive_list(
         )
         return
 
-    url = (
-        f"https://graph.facebook.com/{WHATSAPP_API_VERSION}/"
-        f"{settings.whatsapp_phone_number_id}/messages"
-    )
+    url = f"https://graph.facebook.com/{WHATSAPP_API_VERSION}/{phone_number_id}/messages"
     headers = {"Authorization": f"Bearer {settings.whatsapp_access_token}"}
     payload = {
         "messaging_product": "whatsapp",

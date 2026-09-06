@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.db.session import get_db
+from app.models.tenant import Tenant
 from app.services.whatsapp_client import send_whatsapp_message
 from app.services.whatsapp_flow import handle_message
 
@@ -45,9 +46,11 @@ def verify_webhook(
 @limiter.limit("120/minute")
 async def receive_message(request: Request, db: Session = Depends(get_db)):
     """Meta POSTs here for every event we've subscribed to (currently just
-    "messages"). No per-tenant routing yet - WHATSAPP_TENANT_ID says which
-    single shop this WhatsApp number belongs to; mapping many numbers to
-    many tenants is future work once more than one shop is on WhatsApp.
+    "messages"). Routes by which WhatsApp number the message came in on
+    (value.metadata.phone_number_id) so many shops can share one Meta
+    app/access token, each with their own connected number; falls back to
+    the legacy single-tenant WHATSAPP_TENANT_ID for a number that hasn't
+    been assigned to a tenant yet.
     """
     body = await request.body()
 
@@ -67,8 +70,9 @@ async def receive_message(request: Request, db: Session = Depends(get_db)):
         for change in entry.get("changes", []):
             value = change.get("value", {})
             contact_name = _extract_contact_name(value)
+            phone_number_id = value.get("metadata", {}).get("phone_number_id")
             for message in value.get("messages", []):
-                _handle_incoming(db, message, contact_name)
+                _handle_incoming(db, phone_number_id, message, contact_name)
 
     # Meta requires a 200 within a few seconds regardless of what we did
     # with the payload, or it will retry (and eventually disable) delivery.
@@ -82,12 +86,30 @@ def _extract_contact_name(value: dict) -> str | None:
     return None
 
 
-def _handle_incoming(db: Session, message: dict, contact_name: str | None) -> None:
+def _resolve_tenant_id(db: Session, phone_number_id: str | None) -> int | None:
+    if phone_number_id:
+        tenant = (
+            db.query(Tenant)
+            .filter(Tenant.whatsapp_phone_number_id == phone_number_id)
+            .first()
+        )
+        if tenant:
+            return tenant.id
+    # Legacy fallback: the one tenant wired up via env var, for a number
+    # that hasn't been assigned to a tenant in the database yet.
+    return settings.whatsapp_tenant_id
+
+
+def _handle_incoming(
+    db: Session, phone_number_id: str | None, message: dict, contact_name: str | None
+) -> None:
     from_number = message.get("from")
     if not from_number:
         return
 
-    if settings.whatsapp_tenant_id is None:
+    tenant_id = _resolve_tenant_id(db, phone_number_id)
+
+    if tenant_id is None:
         # No shop wired up to this WhatsApp number yet - keep the old
         # placeholder behavior rather than guessing which tenant it's for.
         text = message.get("text", {}).get("body", "")
@@ -95,7 +117,8 @@ def _handle_incoming(db: Session, message: dict, contact_name: str | None) -> No
         send_whatsapp_message(
             to=from_number,
             body="Thanks for reaching out! Online booking via WhatsApp is coming soon.",
+            phone_number_id=phone_number_id,
         )
         return
 
-    handle_message(db, settings.whatsapp_tenant_id, from_number, message, contact_name)
+    handle_message(db, tenant_id, from_number, message, contact_name)

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_tenant_id
@@ -40,6 +41,14 @@ def update_my_tenant(
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(tenant, field, value)
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="This WhatsApp number is already connected to another shop",
+        )
+
     db.refresh(tenant)
     return tenant
