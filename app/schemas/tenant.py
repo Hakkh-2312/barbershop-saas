@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -10,6 +12,8 @@ class TenantRead(BaseModel):
     address: str | None
     country_code: str | None
     whatsapp_phone_number_id: str | None
+    subscription_status: str | None
+    trial_ends_at: datetime | None
 
 
 class TenantUpdate(BaseModel):

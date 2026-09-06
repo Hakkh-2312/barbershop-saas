@@ -1,7 +1,10 @@
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.session import get_db
@@ -23,7 +26,11 @@ def signup(request: Request, payload: SignupRequest, db: Session = Depends(get_d
     if existing_user:
         raise HTTPException(status_code=409, detail="Email already registered")
 
-    tenant = Tenant(name=payload.tenant_name)
+    tenant = Tenant(
+        name=payload.tenant_name,
+        subscription_status="trialing",
+        trial_ends_at=datetime.now() + timedelta(days=settings.trial_period_days),
+    )
     db.add(tenant)
     db.flush()
 

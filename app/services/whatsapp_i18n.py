@@ -26,6 +26,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "service_header": "الخدمات",
         "service_body": "ما هي الخدمة التي ترغب بحجزها؟",
         "no_services": "عذراً، لم يتم إعداد أي خدمات بعد.",
+        "booking_unavailable": "عذراً، لا يمكن الحجز حالياً. يرجى التواصل مع المتجر مباشرة.",
         "date_header": "اختر التاريخ",
         "date_body": "اختر التاريخ المناسب لك",
         "no_dates": "عذراً، لا توجد مواعيد متاحة خلال الأسبوعين القادمين.",
@@ -80,6 +81,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "service_header": "שירותים",
         "service_body": "איזה שירות תרצו להזמין?",
         "no_services": "מצטערים, עדיין לא הוגדרו שירותים.",
+        "booking_unavailable": "מצטערים, לא ניתן להזמין תור כרגע. אנא צרו קשר ישירות עם העסק.",
         "date_header": "בחרו תאריך",
         "date_body": "בחרו תאריך מתאים",
         "no_dates": "מצטערים, אין תורים פנויים בשבועיים הקרובים.",
@@ -134,6 +136,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "service_header": "Services",
         "service_body": "Which service would you like to book?",
         "no_services": "Sorry, no services have been set up yet.",
+        "booking_unavailable": (
+            "Sorry, booking isn't available right now. Please contact the shop directly."
+        ),
         "date_header": "Choose a date",
         "date_body": "Choose a date that works for you",
         "no_dates": "Sorry, nothing available in the next two weeks.",

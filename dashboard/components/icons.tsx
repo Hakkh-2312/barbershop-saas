@@ -98,6 +98,16 @@ export function BellIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function CreditCardIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="5.5" width="18" height="13" rx="2" />
+      <path d="M3 9.5h18" />
+      <path d="M6.5 14.5h4" />
+    </Icon>
+  );
+}
+
 export function ChartIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

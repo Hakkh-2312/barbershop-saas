@@ -13,6 +13,7 @@ from app.api.routes import (
     appointments,
     auth,
     availability,
+    billing,
     customers,
     health,
     internal,
@@ -73,6 +74,7 @@ app.include_router(time_blocks.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
 app.include_router(internal.router, prefix="/api")
+app.include_router(billing.router, prefix="/api")
 
 
 @app.get("/")

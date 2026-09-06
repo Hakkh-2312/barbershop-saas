@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,3 +26,17 @@ class Tenant(TimestampMixin, Base):
     whatsapp_phone_number_id: Mapped[str | None] = mapped_column(
         String(50), unique=True, nullable=True
     )
+
+    # Billing (Stripe). NULL means "grandfathered" - every tenant that
+    # existed before billing shipped, exempt from subscription enforcement
+    # forever. A real value ("trialing"/"active"/"past_due"/"canceled",
+    # taken straight from Stripe's own subscription.status once a real
+    # subscription exists) only appears once a tenant has actually gone
+    # through the trial/subscribe flow.
+    subscription_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    # Trials are tracked entirely on our side (no card, so no Stripe
+    # subscription object exists yet) - set once at signup, checked
+    # against the current time rather than relying on a webhook.
+    trial_ends_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    stripe_subscription_id: Mapped[str | None] = mapped_column(String(255), nullable=True)

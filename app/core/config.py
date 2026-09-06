@@ -52,6 +52,19 @@ class Settings(BaseSettings):
     # refuses every request.
     internal_task_secret: str | None = None
 
+    # Billing (Stripe)
+    stripe_secret_key: str | None = None
+    # Dashboard -> Developers -> Webhooks -> (your endpoint) -> Signing secret.
+    stripe_webhook_secret: str | None = None
+    # The Price id (not Product id) of the one subscription plan, from
+    # Dashboard -> Product catalog. Billing is unconfigured (checkout/portal
+    # routes return an error) until both this and the secret key are set.
+    stripe_price_id: str | None = None
+    # Where Stripe should send the customer back after Checkout/the
+    # Customer Portal - the deployed dashboard's own URL.
+    dashboard_url: str = "http://localhost:3000"
+    trial_period_days: int = 14
+
     @property
     def cors_allowed_origins_list(self) -> list[str]:
         return [

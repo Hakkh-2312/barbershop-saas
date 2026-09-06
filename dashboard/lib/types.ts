@@ -44,6 +44,8 @@ export interface Tenant {
   address: string | null;
   country_code: string | null;
   whatsapp_phone_number_id: string | null;
+  subscription_status: string | null;
+  trial_ends_at: string | null;
 }
 
 export interface TimeBlock {

@@ -16,6 +16,7 @@ import {
   ClockIcon,
   BlockIcon,
   ChartIcon,
+  CreditCardIcon,
   GearIcon,
   LogoutIcon,
 } from "@/components/icons";
@@ -28,6 +29,7 @@ const NAV_LINKS = [
   { href: "/working-hours", key: "nav.workingHours", icon: ClockIcon },
   { href: "/time-off", key: "nav.timeOff", icon: BlockIcon },
   { href: "/analytics", key: "nav.analytics", icon: ChartIcon },
+  { href: "/billing", key: "nav.billing", icon: CreditCardIcon },
   { href: "/settings", key: "nav.settings", icon: GearIcon },
 ];
 

@@ -7,6 +7,7 @@ from app.models.customer import Customer
 from app.models.service import Service
 from app.models.tenant import Tenant
 from app.models.whatsapp_conversation import WhatsappConversation
+from app.services.billing import is_subscription_active
 from app.services.booking import (
     BookingError,
     create_booking,
@@ -400,6 +401,11 @@ def _handle_menu_selection(
     lang = conversation.language
 
     if action == "book":
+        tenant = db.query(Tenant).filter(Tenant.id == conversation.tenant_id).first()
+        if not tenant or not is_subscription_active(tenant):
+            _send_text(db, conversation, t(lang, "booking_unavailable"))
+            return
+
         if not _find_customer(db, conversation.tenant_id, conversation.phone_number):
             # Stale button tap from an unregistered number - register their
             # name first rather than letting them book anonymously.

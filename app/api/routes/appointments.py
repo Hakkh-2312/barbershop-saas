@@ -11,6 +11,7 @@ from app.models.customer import Customer
 from app.models.service import Service
 from app.models.tenant import Tenant
 from app.schemas.appointment import AppointmentCreate, AppointmentRead, AppointmentReschedule
+from app.services.billing import require_active_subscription
 from app.services.booking import BookingError, create_booking, reschedule_booking
 from app.services.notifications import customer_language, notify_customer
 from app.services.whatsapp_i18n import format_date_full, t
@@ -132,7 +133,12 @@ def _notify_customer_of_appointment(
     )
 
 
-@router.post("", response_model=AppointmentRead, status_code=201)
+@router.post(
+    "",
+    response_model=AppointmentRead,
+    status_code=201,
+    dependencies=[Depends(require_active_subscription)],
+)
 def create_appointment(
     appointment: AppointmentCreate,
     db: Session = Depends(get_db),

@@ -46,6 +46,21 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     "analytics.to": "To",
 
     "nav.analytics": "Analytics",
+    "nav.billing": "Billing",
+
+    "billing.title": "Billing",
+    "billing.description": "Your subscription to this dashboard.",
+    "billing.grandfathered": "You have full access - no subscription needed.",
+    "billing.trialing": "You're on a free trial.",
+    "billing.trialDaysLeft": "{days} days left in your trial.",
+    "billing.trialExpired": "Your trial has ended.",
+    "billing.active": "Your subscription is active.",
+    "billing.pastDue": "There's a problem with your last payment.",
+    "billing.canceled": "Your subscription has ended.",
+    "billing.subscribe": "Subscribe",
+    "billing.manage": "Manage billing",
+    "billing.success": "Subscription confirmed - thank you!",
+    "billing.cancelledCheckout": "Checkout was cancelled - no changes were made.",
 
     "nav.shopFallback": "Your Shop",
     "nav.today": "Today",
@@ -182,6 +197,21 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
     "analytics.to": "إلى",
 
     "nav.analytics": "التحليلات",
+    "nav.billing": "الفوترة",
+
+    "billing.title": "الفوترة",
+    "billing.description": "اشتراكك في لوحة التحكم هذه.",
+    "billing.grandfathered": "لديك وصول كامل - لا حاجة لاشتراك.",
+    "billing.trialing": "أنت في فترة تجريبية مجانية.",
+    "billing.trialDaysLeft": "بقي {days} يوم على انتهاء فترتك التجريبية.",
+    "billing.trialExpired": "انتهت فترتك التجريبية.",
+    "billing.active": "اشتراكك مفعّل.",
+    "billing.pastDue": "هناك مشكلة في آخر عملية دفع.",
+    "billing.canceled": "انتهى اشتراكك.",
+    "billing.subscribe": "اشترك الآن",
+    "billing.manage": "إدارة الفوترة",
+    "billing.success": "تم تأكيد الاشتراك - شكراً لك!",
+    "billing.cancelledCheckout": "تم إلغاء عملية الدفع - لم يتم إجراء أي تغييرات.",
 
     "nav.shopFallback": "متجرك",
     "nav.today": "اليوم",
@@ -283,7 +313,7 @@ const TRANSLATIONS: Record<Lang, Record<string, string>> = {
 interface LanguageContextValue {
   lang: Lang;
   setLang: (lang: Lang) => void;
-  t: (key: string) => string;
+  t: (key: string, vars?: Record<string, string | number>) => string;
   dir: "ltr" | "rtl";
 }
 
@@ -309,8 +339,13 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLangState(next);
   }
 
-  function t(key: string): string {
-    return TRANSLATIONS[lang][key] ?? key;
+  function t(key: string, vars?: Record<string, string | number>): string {
+    const template = TRANSLATIONS[lang][key] ?? key;
+    if (!vars) return template;
+    return Object.entries(vars).reduce(
+      (result, [name, value]) => result.replaceAll(`{${name}}`, String(value)),
+      template
+    );
   }
 
   return (
