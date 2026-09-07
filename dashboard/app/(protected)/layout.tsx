@@ -5,8 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { useLanguage } from "@/lib/i18n";
-import { apiGet } from "@/lib/api";
-import type { Tenant } from "@/lib/types";
+import { useTenant } from "@/lib/tenant";
 import { NotificationBell } from "@/components/NotificationBell";
 import {
   HomeIcon,
@@ -38,9 +37,9 @@ const NAV_LINKS = [
 export default function ProtectedLayout({ children }: { children: ReactNode }) {
   const { token, isLoading, logout } = useAuth();
   const { t, lang, setLang } = useLanguage();
+  const { tenant } = useTenant();
   const router = useRouter();
   const pathname = usePathname();
-  const [shopName, setShopName] = useState<string | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
@@ -48,13 +47,6 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
       router.replace("/login");
     }
   }, [isLoading, token, router]);
-
-  useEffect(() => {
-    if (!token) return;
-    apiGet<Tenant>("/api/tenants/me")
-      .then((t) => setShopName(t.name))
-      .catch(() => setShopName(null));
-  }, [token]);
 
   // Close the mobile drawer automatically whenever the route changes -
   // otherwise it stays open after tapping a nav link.
@@ -118,7 +110,7 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
       <aside className="hidden w-60 shrink-0 flex-col border-e border-slate-200 bg-white md:flex">
         <div className="border-b border-slate-200 px-5 py-5">
           <p className="truncate text-sm font-semibold text-slate-900">
-            {shopName ?? t("nav.shopFallback")}
+            {tenant?.name ?? t("nav.shopFallback")}
           </p>
         </div>
         {navList}
@@ -140,7 +132,7 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-5">
           <p className="truncate text-sm font-semibold text-slate-900">
-            {shopName ?? t("nav.shopFallback")}
+            {tenant?.name ?? t("nav.shopFallback")}
           </p>
           <button
             onClick={() => setMobileNavOpen(false)}

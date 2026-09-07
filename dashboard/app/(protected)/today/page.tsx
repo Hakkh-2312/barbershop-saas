@@ -5,6 +5,7 @@ import Link from "next/link";
 import { apiGet, apiPost, ApiError } from "@/lib/api";
 import { formatDateLong, formatTime, todayIso } from "@/lib/format";
 import { dateLocale, useLanguage } from "@/lib/i18n";
+import { useTenant } from "@/lib/tenant";
 import { toWhatsAppLink } from "@/lib/whatsapp";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
@@ -13,7 +14,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Skeleton, SkeletonList } from "@/components/Skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { BlockIcon, WhatsAppIcon, HomeIcon } from "@/components/icons";
-import type { Appointment, Tenant, TimeBlock } from "@/lib/types";
+import type { Appointment, TimeBlock } from "@/lib/types";
 
 type ScheduleItem =
   | { kind: "appointment"; start_time: string; data: Appointment }
@@ -21,8 +22,8 @@ type ScheduleItem =
 
 export default function TodayPage() {
   const { t, lang } = useLanguage();
+  const { tenant } = useTenant();
   const [items, setItems] = useState<ScheduleItem[]>([]);
-  const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rescheduleId, setRescheduleId] = useState<number | null>(null);
@@ -34,10 +35,9 @@ export default function TodayPage() {
     setLoading(true);
     setError(null);
     try {
-      const [appointments, blocks, myTenant] = await Promise.all([
+      const [appointments, blocks] = await Promise.all([
         apiGet<Appointment[]>(`/api/appointments?date=${today}`),
         apiGet<TimeBlock[]>(`/api/time-blocks?date=${today}`),
-        apiGet<Tenant>("/api/tenants/me"),
       ]);
 
       const merged: ScheduleItem[] = [
@@ -46,7 +46,6 @@ export default function TodayPage() {
       ].sort((a, b) => a.start_time.localeCompare(b.start_time));
 
       setItems(merged);
-      setTenant(myTenant);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load today's schedule");
     } finally {

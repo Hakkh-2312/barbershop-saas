@@ -68,42 +68,37 @@ def get_analytics_overview(
 ):
     range_start, range_end = _resolve_range(range, start, end)
 
-    revenue = (
-        db.query(func.coalesce(func.sum(Service.price), 0))
+    # One round trip for every appointment touching this range (any status,
+    # each request's DB latency is what's actually slow here, not the size
+    # of this result set) - revenue and the set of customers seen in the
+    # range are both derived from it in Python instead of two more queries.
+    in_range_rows = (
+        db.query(Appointment.customer_id, Appointment.status, Service.price)
         .select_from(Appointment)
         .join(Service, Service.id == Appointment.service_id)
         .filter(
             Appointment.tenant_id == tenant_id,
-            Appointment.status.in_(REVENUE_STATUSES),
             Appointment.start_time >= range_start,
             Appointment.start_time < range_end,
         )
-        .scalar()
-    )
-
-    new_customers = (
-        db.query(Customer)
-        .filter(
-            Customer.tenant_id == tenant_id,
-            Customer.created_at >= range_start,
-            Customer.created_at < range_end,
-        )
-        .count()
-    )
-
-    total_customers = db.query(Customer).filter(Customer.tenant_id == tenant_id).count()
-
-    in_range_customer_ids = [
-        row[0]
-        for row in db.query(Appointment.customer_id)
-        .filter(
-            Appointment.tenant_id == tenant_id,
-            Appointment.start_time >= range_start,
-            Appointment.start_time < range_end,
-        )
-        .distinct()
         .all()
-    ]
+    )
+
+    revenue = sum(
+        price for _, status, price in in_range_rows if status in REVENUE_STATUSES
+    )
+    in_range_customer_ids = list({customer_id for customer_id, _, _ in in_range_rows})
+
+    total_customers, new_customers = (
+        db.query(
+            func.count(Customer.id),
+            func.count(Customer.id).filter(
+                Customer.created_at >= range_start, Customer.created_at < range_end
+            ),
+        )
+        .filter(Customer.tenant_id == tenant_id)
+        .one()
+    )
 
     returning_customers = 0
     if in_range_customer_ids:

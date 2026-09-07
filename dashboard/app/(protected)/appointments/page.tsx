@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { apiGet, apiPost, ApiError } from "@/lib/api";
 import { formatTime } from "@/lib/format";
 import { useLanguage } from "@/lib/i18n";
+import { useTenant } from "@/lib/tenant";
 import { toWhatsAppLink } from "@/lib/whatsapp";
 import { Card } from "@/components/Card";
 import { PageHeader } from "@/components/PageHeader";
@@ -13,12 +14,12 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { SkeletonList } from "@/components/Skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { WhatsAppIcon, CalendarIcon } from "@/components/icons";
-import type { Appointment, Tenant } from "@/lib/types";
+import type { Appointment } from "@/lib/types";
 
 export default function AppointmentsPage() {
   const { t } = useLanguage();
+  const { tenant } = useTenant();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState("");
@@ -34,12 +35,8 @@ export default function AppointmentsPage() {
       if (dateFilter) params.set("date", dateFilter);
       if (statusFilter) params.set("status", statusFilter);
       const query = params.toString() ? `?${params.toString()}` : "";
-      const [appts, myTenant] = await Promise.all([
-        apiGet<Appointment[]>(`/api/appointments${query}`),
-        apiGet<Tenant>("/api/tenants/me"),
-      ]);
+      const appts = await apiGet<Appointment[]>(`/api/appointments${query}`);
       setAppointments(appts);
-      setTenant(myTenant);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load appointments");
     } finally {
