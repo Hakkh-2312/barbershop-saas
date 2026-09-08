@@ -25,7 +25,7 @@ export function NotificationBell() {
       message: t(`notifications.type.${n.type}.message`, {
         customer: n.customer_name,
         service: n.service_name ?? t("notifications.defaultService"),
-        date: formatDateLong(n.appointment_time, dateLocale(lang)),
+        date: formatDateLong(n.appointment_time.slice(0, 10), dateLocale(lang)),
         time: formatTime(n.appointment_time),
       }),
     };
