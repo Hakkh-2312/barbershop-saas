@@ -60,6 +60,9 @@ export interface Notification {
   type: string;
   title: string;
   message: string;
+  customer_name: string | null;
+  service_name: string | null;
+  appointment_time: string | null;
   appointment_id: number | null;
   is_read: boolean;
   created_at: string;

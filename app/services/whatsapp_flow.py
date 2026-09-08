@@ -333,6 +333,9 @@ def _handle_appointment_action(
             f"{service.name if service else 'their appointment'} on "
             f"{appointment.start_time.strftime('%b %d at %H:%M')}.",
             appointment_id=appointment.id,
+            customer_name=customer.name if customer else conversation.phone_number,
+            service_name=service.name if service else None,
+            appointment_time=appointment.start_time,
         )
 
         _show_main_menu(db, conversation)
@@ -708,6 +711,9 @@ def _handle_slot_selection(
         f"{customer.name} booked {service.name if service else 'an appointment'} on "
         f"{appointment.start_time.strftime('%b %d at %H:%M')}.",
         appointment_id=appointment.id,
+        customer_name=customer.name,
+        service_name=service.name if service else None,
+        appointment_time=appointment.start_time,
     )
     # Per spec: the conversation just ends here - no menu re-push. The
     # customer sees it again next time they message in (main_menu is the
@@ -777,6 +783,9 @@ def _handle_reschedule_slot(
         f"{service.name if service else 'their appointment'} to "
         f"{appointment.start_time.strftime('%b %d at %H:%M')}.",
         appointment_id=appointment.id,
+        customer_name=customer.name if customer else conversation.phone_number,
+        service_name=service.name if service else None,
+        appointment_time=appointment.start_time,
     )
 
     _reset_to_main_menu(conversation)

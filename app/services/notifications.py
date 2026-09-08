@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -55,11 +57,20 @@ def notify_barber(
     title: str,
     message: str,
     appointment_id: int | None = None,
+    customer_name: str | None = None,
+    service_name: str | None = None,
+    appointment_time: datetime | None = None,
 ) -> None:
     """Creates an in-dashboard notification for the shop owner - used for
     customer-initiated actions via WhatsApp (booking, cancelling,
     rescheduling) that the owner wouldn't otherwise know about without
-    checking the dashboard themselves."""
+    checking the dashboard themselves.
+
+    title/message are an English fallback the dashboard falls back to if it
+    doesn't recognize `type`; customer_name/service_name/appointment_time
+    are stored separately so the dashboard can render the same event in the
+    shop owner's own language instead of being stuck with baked-in English.
+    """
     db.add(
         Notification(
             tenant_id=tenant_id,
@@ -67,6 +78,9 @@ def notify_barber(
             title=title,
             message=message,
             appointment_id=appointment_id,
+            customer_name=customer_name,
+            service_name=service_name,
+            appointment_time=appointment_time,
         )
     )
     db.commit()

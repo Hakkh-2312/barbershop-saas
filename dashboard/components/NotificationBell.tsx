@@ -2,13 +2,34 @@
 
 import { useEffect, useRef, useState } from "react";
 import { apiGet, apiPost } from "@/lib/api";
-import { useLanguage } from "@/lib/i18n";
-import { formatRelativeTime } from "@/lib/format";
+import { dateLocale, useLanguage } from "@/lib/i18n";
+import { formatDateLong, formatRelativeTime, formatTime } from "@/lib/format";
 import { BellIcon } from "@/components/icons";
 import type { Notification } from "@/lib/types";
 
+// Types the dashboard knows how to fully re-translate from their stored
+// customer/service/time fields - anything else (or an older notification
+// created before those fields existed) falls back to the stored English
+// title/message instead.
+const LOCALIZABLE_TYPES = new Set(["new_booking", "cancellation", "reschedule"]);
+
 export function NotificationBell() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+
+  function localize(n: Notification): { title: string; message: string } {
+    if (!n.customer_name || !n.appointment_time || !LOCALIZABLE_TYPES.has(n.type)) {
+      return { title: n.title, message: n.message };
+    }
+    return {
+      title: t(`notifications.type.${n.type}.title`),
+      message: t(`notifications.type.${n.type}.message`, {
+        customer: n.customer_name,
+        service: n.service_name ?? t("notifications.defaultService"),
+        date: formatDateLong(n.appointment_time, dateLocale(lang)),
+        time: formatTime(n.appointment_time),
+      }),
+    };
+  }
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -113,7 +134,9 @@ export function NotificationBell() {
               <p className="p-4 text-sm text-slate-500">{t("notifications.empty")}</p>
             ) : (
               <ul className="divide-y divide-slate-100">
-                {notifications.map((n) => (
+                {notifications.map((n) => {
+                  const { title, message } = localize(n);
+                  return (
                   <li
                     key={n.id}
                     onClick={() => !n.is_read && handleMarkRead(n.id)}
@@ -122,17 +145,18 @@ export function NotificationBell() {
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="font-medium text-slate-900">{n.title}</p>
+                      <p className="font-medium text-slate-900">{title}</p>
                       {!n.is_read && (
                         <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-indigo-600" />
                       )}
                     </div>
-                    <p className="mt-0.5 text-slate-600">{n.message}</p>
+                    <p className="mt-0.5 text-slate-600">{message}</p>
                     <p className="mt-1 text-xs text-slate-400">
                       {formatRelativeTime(n.created_at)}
                     </p>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </div>

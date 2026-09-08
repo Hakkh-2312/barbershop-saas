@@ -131,5 +131,8 @@ def cancel_via_reminder_button(db: Session, tenant_id: int, from_number: str) ->
         f"{customer.name} cancelled {service.name if service else 'their appointment'} on "
         f"{appointment.start_time.strftime('%b %d at %H:%M')} (via reminder).",
         appointment_id=appointment.id,
+        customer_name=customer.name,
+        service_name=service.name if service else None,
+        appointment_time=appointment.start_time,
     )
     return True
