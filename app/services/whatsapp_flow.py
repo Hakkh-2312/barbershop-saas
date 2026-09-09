@@ -338,7 +338,11 @@ def _handle_appointment_action(
             appointment_time=appointment.start_time,
         )
 
-        _show_main_menu(db, conversation)
+        # Same as a successful booking: end the conversation here rather
+        # than immediately pushing another menu - the customer just asked
+        # to cancel, not to see what else they can do right now.
+        _reset_to_main_menu(conversation)
+        db.commit()
         return
 
     if action == "reschedule":
