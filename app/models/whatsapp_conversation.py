@@ -53,3 +53,10 @@ class WhatsappConversation(TimestampMixin, Base):
     # Reused contextually for whichever list `state` currently points at
     # (service/date/slot) - reset to 0 whenever a new list is first shown.
     page: Mapped[int] = mapped_column(nullable=False, default=0)
+
+    # WhatsApp's wamid of the last message actually processed from this
+    # customer - Meta can and does redeliver the same webhook event (e.g.
+    # if the server was slow to ack), and reprocessing an already-handled
+    # tap after its state transition already happened would fall through
+    # to whatever the *new* state renders instead of being a safe no-op.
+    last_message_id: Mapped[str | None] = mapped_column(String(100), nullable=True)

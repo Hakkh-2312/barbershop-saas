@@ -1,3 +1,5 @@
+import itertools
+
 import pytest
 
 from app.core.config import settings
@@ -5,6 +7,8 @@ from app.core.security import decode_access_token
 from app.models.appointment import Appointment
 from app.models.customer import Customer
 from app.models.whatsapp_conversation import WhatsappConversation
+
+_message_id_counter = itertools.count(1)
 
 
 def _tenant_id_from_headers(headers: dict) -> int:
@@ -27,7 +31,7 @@ def _text_message(from_number: str, body: str, contact_name: str = "Test Custome
                             "messages": [
                                 {
                                     "from": from_number,
-                                    "id": "wamid.1",
+                                    "id": f"wamid.{next(_message_id_counter)}",
                                     "timestamp": "1",
                                     "type": "text",
                                     "text": {"body": body},
@@ -59,7 +63,7 @@ def _list_reply_message(
                             "messages": [
                                 {
                                     "from": from_number,
-                                    "id": "wamid.2",
+                                    "id": f"wamid.{next(_message_id_counter)}",
                                     "timestamp": "1",
                                     "type": "interactive",
                                     "interactive": {
@@ -437,7 +441,7 @@ def test_returning_customer_with_upcoming_appointment_is_asked_cancel_or_resched
     assert {r["id"] for r in rows} == {"appt:reschedule", "appt:cancel"}
 
 
-def test_choosing_cancel_cancels_appointment_and_shows_normal_menu(
+def test_choosing_cancel_cancels_appointment_and_stays_quiet(
     client, whatsapp_shop, capture_sent, db_session
 ):
     _headers, tenant_id, service_id = whatsapp_shop
@@ -447,13 +451,14 @@ def test_choosing_cancel_cancels_appointment_and_shows_normal_menu(
     _book_first_available_slot(client, phone, service_id, capture_sent)
     client.post("/api/whatsapp/webhook", json=_text_message(phone, "hi again"))
 
+    sent_before = len(capture_sent)
     resp = client.post("/api/whatsapp/webhook", json=_list_reply_message(phone, "appt:cancel"))
     assert resp.status_code == 200
 
-    # Cancellation confirmation, then the normal main menu re-offered since
-    # there's no longer an upcoming appointment.
-    assert "✅" in capture_sent[-2]["text"]["body"]
-    assert _rows(capture_sent[-1])[0]["id"] == "menu:book"
+    # Only the cancellation confirmation - same as a successful booking, the
+    # conversation ends here rather than immediately pushing another menu.
+    assert len(capture_sent) == sent_before + 1
+    assert "✅" in capture_sent[-1]["text"]["body"]
 
     customer = (
         db_session.query(Customer)
@@ -464,6 +469,32 @@ def test_choosing_cancel_cancels_appointment_and_shows_normal_menu(
         db_session.query(Appointment).filter(Appointment.customer_id == customer.id).first()
     )
     assert appointment.status == "cancelled"
+
+
+def test_redelivered_cancel_webhook_is_not_reprocessed(
+    client, whatsapp_shop, capture_sent, db_session
+):
+    """Meta can redeliver the same webhook event (e.g. a slow ack) - a
+    second delivery of an already-handled tap must be a no-op, not fall
+    through to whatever the *new* state renders (previously: the normal
+    main menu, right after the cancellation confirmation)."""
+    _headers, tenant_id, service_id = whatsapp_shop
+    phone = "15550001111"
+
+    _onboard(client, phone, name="Redelivery Customer")
+    _book_first_available_slot(client, phone, service_id, capture_sent)
+    client.post("/api/whatsapp/webhook", json=_text_message(phone, "hi again"))
+
+    cancel_payload = _list_reply_message(phone, "appt:cancel")
+    resp1 = client.post("/api/whatsapp/webhook", json=cancel_payload)
+    assert resp1.status_code == 200
+    sent_after_first = len(capture_sent)
+
+    # Same exact payload (same message id) redelivered.
+    resp2 = client.post("/api/whatsapp/webhook", json=cancel_payload)
+    assert resp2.status_code == 200
+
+    assert len(capture_sent) == sent_after_first
 
 
 def test_choosing_reschedule_lets_customer_pick_a_new_time(

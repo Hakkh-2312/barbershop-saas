@@ -1,7 +1,11 @@
+import itertools
+
 import pytest
 
 from app.core.config import settings
 from app.core.security import decode_access_token
+
+_message_id_counter = itertools.count(1)
 
 
 def _tenant_id_from_headers(headers: dict) -> int:
@@ -26,7 +30,7 @@ def _text_message(
                             "messages": [
                                 {
                                     "from": from_number,
-                                    "id": "wamid.1",
+                                    "id": f"wamid.{next(_message_id_counter)}",
                                     "timestamp": "1",
                                     "type": "text",
                                     "text": {"body": body},
@@ -58,7 +62,7 @@ def _list_reply_message(
                             "messages": [
                                 {
                                     "from": from_number,
-                                    "id": "wamid.2",
+                                    "id": f"wamid.{next(_message_id_counter)}",
                                     "timestamp": "1",
                                     "type": "interactive",
                                     "interactive": {

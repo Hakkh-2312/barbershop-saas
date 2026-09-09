@@ -77,6 +77,18 @@ def handle_message(
 ) -> None:
     conversation = _get_or_create_conversation(db, tenant_id, from_number)
 
+    # Meta can and does redeliver the same webhook event (e.g. if the
+    # server was slow to ack) - reprocessing an already-handled tap would
+    # re-evaluate it against whatever state the first delivery already
+    # moved us into (usually main_menu), which renders something new
+    # rather than being a safe no-op. Skip anything we've already seen.
+    message_id = message.get("id")
+    if message_id and message_id == conversation.last_message_id:
+        return
+    if message_id:
+        conversation.last_message_id = message_id
+        db.commit()
+
     if message.get("type") == "interactive":
         button_reply = message.get("interactive", {}).get("button_reply")
         if button_reply and _is_reminder_cancel_button(button_reply):
