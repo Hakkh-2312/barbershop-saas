@@ -3,7 +3,7 @@ import hmac
 import json
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -44,7 +44,9 @@ def verify_webhook(
 
 @router.post("/webhook")
 @limiter.limit("120/minute")
-async def receive_message(request: Request, db: Session = Depends(get_db)):
+async def receive_message(
+    request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
     """Meta POSTs here for every event we've subscribed to (currently just
     "messages"). Routes by which WhatsApp number the message came in on
     (value.metadata.phone_number_id) so many shops can share one Meta
@@ -66,17 +68,32 @@ async def receive_message(request: Request, db: Session = Depends(get_db)):
 
     payload = json.loads(body)
 
+    # Meta requires a 200 within a few seconds or it retries delivery of the
+    # same event - actually handling a message involves DB queries and an
+    # outbound call to WhatsApp's API, which is easily slow enough to blow
+    # past that window (a cold-started server especially). Acknowledge
+    # immediately and do the real work after responding, so a slow reply
+    # can no longer trigger Meta redelivering the same message. FastAPI
+    # keeps `db` (a yield-dependency) open until background tasks finish,
+    # so this is safe to reuse rather than opening a second connection.
+    background_tasks.add_task(_process_webhook_payload, db, payload)
+    return {"status": "ok"}
+
+
+def _process_webhook_payload(db: Session, payload: dict) -> None:
     for entry in payload.get("entry", []):
         for change in entry.get("changes", []):
             value = change.get("value", {})
             contact_name = _extract_contact_name(value)
             phone_number_id = value.get("metadata", {}).get("phone_number_id")
             for message in value.get("messages", []):
-                _handle_incoming(db, phone_number_id, message, contact_name)
-
-    # Meta requires a 200 within a few seconds regardless of what we did
-    # with the payload, or it will retry (and eventually disable) delivery.
-    return {"status": "ok"}
+                try:
+                    _handle_incoming(db, phone_number_id, message, contact_name)
+                except Exception:
+                    # One bad message shouldn't stop the rest of the
+                    # payload from being processed, and there's no HTTP
+                    # response left to surface this on - log it.
+                    logger.exception("Failed to process incoming WhatsApp message")
 
 
 def _extract_contact_name(value: dict) -> str | None:
