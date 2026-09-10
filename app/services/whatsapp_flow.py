@@ -1,5 +1,6 @@
 from datetime import date, datetime
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.appointment import Appointment
@@ -151,28 +152,49 @@ def handle_message(
 def _get_or_create_conversation(
     db: Session, tenant_id: int, phone_number: str
 ) -> WhatsappConversation:
-    conversation = (
-        db.query(WhatsappConversation)
-        .filter(
-            WhatsappConversation.tenant_id == tenant_id,
-            WhatsappConversation.phone_number == phone_number,
-        )
-        .first()
-    )
+    """Returns the conversation row with a FOR UPDATE lock held (until the
+    caller's next commit). Meta can deliver the same message more than once
+    and a cold-started server can end up processing those deliveries almost
+    simultaneously - the lock serializes them so the last_message_id dedup
+    check in handle_message can't be raced (two deliveries both reading the
+    old id before either writes the new one, and both replying)."""
 
+    def _locked_lookup() -> WhatsappConversation | None:
+        return (
+            db.query(WhatsappConversation)
+            .filter(
+                WhatsappConversation.tenant_id == tenant_id,
+                WhatsappConversation.phone_number == phone_number,
+            )
+            .with_for_update()
+            .first()
+        )
+
+    conversation = _locked_lookup()
     if conversation:
         return conversation
 
-    conversation = WhatsappConversation(
-        tenant_id=tenant_id,
-        phone_number=phone_number,
-        state="main_menu",
-        language=DEFAULT_LANGUAGE,
-        page=0,
+    db.add(
+        WhatsappConversation(
+            tenant_id=tenant_id,
+            phone_number=phone_number,
+            state="main_menu",
+            language=DEFAULT_LANGUAGE,
+            page=0,
+        )
     )
-    db.add(conversation)
-    db.commit()
-    db.refresh(conversation)
+    try:
+        db.commit()
+    except IntegrityError:
+        # A concurrent first-contact delivery inserted it first - fine.
+        db.rollback()
+
+    # Re-fetch with the lock either way, so the caller's dedup check is
+    # always serialized against a concurrent delivery, not just on the
+    # already-existed path.
+    conversation = _locked_lookup()
+    if conversation is None:
+        raise RuntimeError("whatsapp conversation missing right after its insert")
     return conversation
 
 
