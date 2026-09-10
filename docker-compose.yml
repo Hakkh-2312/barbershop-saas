@@ -23,6 +23,7 @@ services:
       # Overrides whatever DATABASE_URL is in .env (e.g. Supabase) so
       # `docker compose up` always talks to the local `db` service above.
       DATABASE_URL: postgresql://postgres:postgres@db:5432/barbershop
+      TZ: Asia/Jerusalem
     ports:
       - "8000:8000"
     depends_on:

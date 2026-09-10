@@ -1,5 +1,15 @@
 FROM python:3.12-slim
 
+# The app works entirely in naive local datetimes (working hours,
+# appointment times, "today"/"now" in the booking flow) and every shop is
+# in this one timezone. Without tzdata + TZ the container runs in UTC, so
+# datetime.now() lands 2-3h behind and already-passed slots for today
+# still get offered. python:*-slim ships no tzdata, hence the apt install.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tzdata \
+    && rm -rf /var/lib/apt/lists/*
+ENV TZ=Asia/Jerusalem
+
 COPY --from=ghcr.io/astral-sh/uv:0.12.9 /uv /uvx /usr/local/bin/
 
 WORKDIR /app
