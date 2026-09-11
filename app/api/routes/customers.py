@@ -16,7 +16,11 @@ router = APIRouter(
 def _get_customer_or_404(db: Session, customer_id: int, tenant_id: int) -> Customer:
     customer = (
         db.query(Customer)
-        .filter(Customer.id == customer_id, Customer.tenant_id == tenant_id)
+        .filter(
+            Customer.id == customer_id,
+            Customer.tenant_id == tenant_id,
+            Customer.is_active.is_(True),
+        )
         .first()
     )
 
@@ -32,16 +36,30 @@ def create_customer(
     db: Session = Depends(get_db),
     tenant_id: int = Depends(get_current_tenant_id),
 ):
+    existing = (
+        db.query(Customer)
+        .filter(Customer.tenant_id == tenant_id, Customer.phone == payload.phone)
+        .first()
+    )
+    if existing:
+        if existing.is_active:
+            raise HTTPException(
+                status_code=409,
+                detail="A customer with this phone number already exists",
+            )
+        # Re-adding someone who was previously deleted - restore them with
+        # the details just submitted rather than hitting the unique
+        # constraint on (tenant_id, phone).
+        for field, value in payload.model_dump().items():
+            setattr(existing, field, value)
+        existing.is_active = True
+        db.commit()
+        db.refresh(existing)
+        return existing
+
     customer = Customer(tenant_id=tenant_id, **payload.model_dump())
     db.add(customer)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="A customer with this phone number already exists",
-        )
+    db.commit()
     db.refresh(customer)
     return customer
 
@@ -51,7 +69,11 @@ def list_customers(
     db: Session = Depends(get_db),
     tenant_id: int = Depends(get_current_tenant_id),
 ):
-    return db.query(Customer).filter(Customer.tenant_id == tenant_id).all()
+    return (
+        db.query(Customer)
+        .filter(Customer.tenant_id == tenant_id, Customer.is_active.is_(True))
+        .all()
+    )
 
 
 @router.get("/{customer_id}", response_model=CustomerRead)
@@ -95,12 +117,5 @@ def delete_customer(
 ):
     customer = _get_customer_or_404(db, customer_id, tenant_id)
 
-    db.delete(customer)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="Cannot delete: customer has existing appointments",
-        )
+    customer.is_active = False
+    db.commit()

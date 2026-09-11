@@ -44,10 +44,17 @@ def test_duplicate_phone_within_tenant_rejected(client, auth_headers):
     assert dup.status_code == 409
 
 
-def test_cannot_delete_customer_with_appointments(client, shop):
+def test_deleting_customer_with_appointments_archives_instead(client, shop, db_session):
+    """A customer with appointment history can't be hard-deleted
+    (appointments.customer_id is ON DELETE RESTRICT, kept for analytics/
+    history even past a cancellation) - deleting archives them instead:
+    they disappear from the dashboard, but their appointment record and
+    its customer_id reference both stay intact."""
+    from app.models.appointment import Appointment
+
     headers, customer_id, service_id = shop
 
-    client.post(
+    created = client.post(
         "/api/appointments",
         headers=headers,
         json={
@@ -56,6 +63,34 @@ def test_cannot_delete_customer_with_appointments(client, shop):
             "start_time": "2026-09-10T11:00:00",
         },
     )
+    appointment_id = created.json()["id"]
 
     resp = client.delete(f"/api/customers/{customer_id}", headers=headers)
-    assert resp.status_code == 409
+    assert resp.status_code == 204
+
+    assert client.get(f"/api/customers/{customer_id}", headers=headers).status_code == 404
+    listed = client.get("/api/customers", headers=headers)
+    assert all(c["id"] != customer_id for c in listed.json())
+
+    appointment = db_session.get(Appointment, appointment_id)
+    assert appointment is not None
+    assert appointment.customer_id == customer_id
+
+
+def test_readding_a_deleted_customers_phone_restores_them(client, auth_headers):
+    headers = auth_headers()
+    created = client.post(
+        "/api/customers", headers=headers, json={"name": "Bob", "phone": "0507771111"}
+    )
+    customer_id = created.json()["id"]
+    client.delete(f"/api/customers/{customer_id}", headers=headers)
+
+    restored = client.post(
+        "/api/customers", headers=headers, json={"name": "Bob Again", "phone": "0507771111"}
+    )
+    assert restored.status_code == 201
+    assert restored.json()["id"] == customer_id
+    assert restored.json()["name"] == "Bob Again"
+
+    listed = client.get("/api/customers", headers=headers)
+    assert sum(1 for c in listed.json() if c["id"] == customer_id) == 1

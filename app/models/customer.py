@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -27,3 +27,10 @@ class Customer(TimestampMixin, Base):
         String(255),
         nullable=True,
     )
+
+    # "Deleting" a customer archives them instead of removing the row -
+    # appointments.customer_id is ON DELETE RESTRICT (cancelled or not, the
+    # row stays for history/analytics), so a real delete would always fail
+    # for any customer who ever booked. Archived customers are hidden from
+    # the dashboard list but keep their appointment history intact.
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
