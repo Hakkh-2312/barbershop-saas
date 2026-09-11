@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_tenant_id
 from app.db.session import get_db
+from app.models.appointment import Appointment
 from app.models.customer import Customer
 from app.schemas.customer import CustomerCreate, CustomerRead, CustomerUpdate
 
@@ -116,6 +117,18 @@ def delete_customer(
     tenant_id: int = Depends(get_current_tenant_id),
 ):
     customer = _get_customer_or_404(db, customer_id, tenant_id)
+
+    has_booked_appointment = (
+        db.query(Appointment)
+        .filter(Appointment.customer_id == customer_id, Appointment.status == "booked")
+        .first()
+        is not None
+    )
+    if has_booked_appointment:
+        raise HTTPException(
+            status_code=409,
+            detail="This customer has an upcoming appointment - cancel it first",
+        )
 
     customer.is_active = False
     db.commit()

@@ -44,12 +44,33 @@ def test_duplicate_phone_within_tenant_rejected(client, auth_headers):
     assert dup.status_code == 409
 
 
-def test_deleting_customer_with_appointments_archives_instead(client, shop, db_session):
-    """A customer with appointment history can't be hard-deleted
-    (appointments.customer_id is ON DELETE RESTRICT, kept for analytics/
-    history even past a cancellation) - deleting archives them instead:
-    they disappear from the dashboard, but their appointment record and
-    its customer_id reference both stay intact."""
+def test_cannot_delete_customer_with_a_booked_appointment(client, shop):
+    headers, customer_id, service_id = shop
+
+    client.post(
+        "/api/appointments",
+        headers=headers,
+        json={
+            "customer_id": customer_id,
+            "service_id": service_id,
+            "start_time": "2026-09-10T11:00:00",
+        },
+    )
+
+    resp = client.delete(f"/api/customers/{customer_id}", headers=headers)
+    assert resp.status_code == 409
+
+
+def test_deleting_customer_with_only_past_appointments_archives_instead(
+    client, shop, db_session
+):
+    """A customer with only cancelled/completed appointment history can't
+    be hard-deleted (appointments.customer_id is ON DELETE RESTRICT, kept
+    for analytics/history) - deleting archives them instead: they
+    disappear from the dashboard, but their appointment record and its
+    customer_id reference both stay intact. A currently *booked*
+    appointment still blocks deletion (see the test above) - cancelling
+    it is what actually unblocks this, unlike before this fix."""
     from app.models.appointment import Appointment
 
     headers, customer_id, service_id = shop
@@ -64,6 +85,7 @@ def test_deleting_customer_with_appointments_archives_instead(client, shop, db_s
         },
     )
     appointment_id = created.json()["id"]
+    client.post(f"/api/appointments/{appointment_id}/cancel", headers=headers)
 
     resp = client.delete(f"/api/customers/{customer_id}", headers=headers)
     assert resp.status_code == 204
@@ -75,6 +97,7 @@ def test_deleting_customer_with_appointments_archives_instead(client, shop, db_s
     appointment = db_session.get(Appointment, appointment_id)
     assert appointment is not None
     assert appointment.customer_id == customer_id
+    assert appointment.status == "cancelled"
 
 
 def test_readding_a_deleted_customers_phone_restores_them(client, auth_headers):
