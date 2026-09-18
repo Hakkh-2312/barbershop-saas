@@ -49,6 +49,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "appt_reschedule": "إعادة الجدولة",
         "appt_cancel": "إلغاء الموعد",
         "appt_cancelled": "تم إلغاء موعدك. ✅",
+        "appt_confirm": "سأحضر",
+        "appt_confirmed": "رائع، نراك حينها! ✅",
         "reschedule_summary": (
             "تم تعديل موعدك بنجاح! ✅\n{shop_name}\n{service_name} - {price} ₪\n"
             "📅 {date}\n🕐 {time}\nنراكم قريباً!"
@@ -104,6 +106,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "appt_reschedule": "שינוי מועד",
         "appt_cancel": "ביטול התור",
         "appt_cancelled": "התור בוטל. ✅",
+        "appt_confirm": "אגיע",
+        "appt_confirmed": "מעולה, נתראה אז! ✅",
         "reschedule_summary": (
             "התור עודכן בהצלחה! ✅\n{shop_name}\n{service_name} - {price} ₪\n"
             "📅 {date}\n🕐 {time}\nנתראה בקרוב!"
@@ -164,6 +168,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "appt_reschedule": "Reschedule",
         "appt_cancel": "Cancel appointment",
         "appt_cancelled": "Your appointment has been cancelled. ✅",
+        "appt_confirm": "I'll be there",
+        "appt_confirmed": "Great, see you then! ✅",
         "reschedule_summary": (
             "Your appointment has been updated! ✅\n{shop_name}\n{service_name} - {price} ₪\n"
             "📅 {date}\n🕐 {time}\nSee you soon!"

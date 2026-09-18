@@ -20,17 +20,21 @@ REMINDER_TEMPLATE_NAME = "appointment_reminder"
 # region (en_US) rather than offering a bare "en".
 _META_TEMPLATE_LANGUAGE = {"ar": "ar", "he": "he", "en": "en_US"}
 
-# Static quick-reply payload configured on the template's Cancel button in
+# Static quick-reply payloads configured on the template's buttons in
 # WhatsApp Manager - the same string comes back for every reminder
 # regardless of which appointment it was about, since template buttons
 # aren't per-message dynamic. The actual appointment is inferred from
-# who's replying (see cancel_via_reminder_button below).
+# who's replying (see _find_reminded_appointment below).
 CANCEL_BUTTON_PAYLOAD = "CANCEL_APPOINTMENT"
+CONFIRM_BUTTON_PAYLOAD = "CONFIRM_APPOINTMENT"
+RESCHEDULE_BUTTON_PAYLOAD = "RESCHEDULE_APPOINTMENT"
 
-# Fallback match on the button's visible text, in case WhatsApp Manager
+# Fallback match on each button's visible text, in case WhatsApp Manager
 # doesn't let a custom payload be set for a quick-reply button and just
 # echoes the button's own label back as its id instead.
 CANCEL_BUTTON_TITLES = {"Cancel appointment", "إلغاء الموعد", "ביטול התור"}
+CONFIRM_BUTTON_TITLES = {"I'll be there", "سأحضر", "אגיע"}
+RESCHEDULE_BUTTON_TITLES = {"Reschedule", "إعادة الجدولة", "שינוי מועד"}
 
 
 def send_due_reminders(db: Session) -> int:
@@ -90,20 +94,24 @@ def send_due_reminders(db: Session) -> int:
     return sent_count
 
 
-def cancel_via_reminder_button(db: Session, tenant_id: int, from_number: str) -> bool:
-    """Handles a tap on a reminder's Cancel button. Since the button's
-    quick-reply payload is static (see CANCEL_BUTTON_PAYLOAD), it can't
-    carry a specific appointment id - the target is inferred as this
-    customer's earliest still-booked, already-reminded appointment, which
-    in practice is unambiguous (a customer isn't usually reminded about
-    two appointments at once). Returns True if something was cancelled."""
+def find_reminded_appointment(
+    db: Session, tenant_id: int, from_number: str
+) -> tuple[Customer, Appointment] | None:
+    """A reminder's quick-reply buttons carry a static payload (see
+    CANCEL_BUTTON_PAYLOAD etc.) - they can't carry a specific appointment
+    id, so the target is inferred as this customer's earliest still-booked,
+    already-reminded appointment, which in practice is unambiguous (a
+    customer isn't usually reminded about two appointments at once). Used
+    by all three reminder-button handlers, plus the reschedule one in
+    whatsapp_flow.py which needs to drive the conversation into the normal
+    date-picking flow rather than acting immediately."""
     customer = (
         db.query(Customer)
         .filter(Customer.tenant_id == tenant_id, Customer.phone == from_number)
         .first()
     )
     if not customer:
-        return False
+        return None
 
     appointment = (
         db.query(Appointment)
@@ -117,7 +125,18 @@ def cancel_via_reminder_button(db: Session, tenant_id: int, from_number: str) ->
         .first()
     )
     if not appointment:
+        return None
+
+    return customer, appointment
+
+
+def cancel_via_reminder_button(db: Session, tenant_id: int, from_number: str) -> bool:
+    """Handles a tap on a reminder's Cancel button. Returns True if
+    something was cancelled."""
+    found = find_reminded_appointment(db, tenant_id, from_number)
+    if not found:
         return False
+    customer, appointment = found
 
     appointment.status = "cancelled"
     db.commit()
@@ -135,4 +154,19 @@ def cancel_via_reminder_button(db: Session, tenant_id: int, from_number: str) ->
         service_name=service.name if service else None,
         appointment_time=appointment.start_time,
     )
+    return True
+
+
+def confirm_via_reminder_button(db: Session, tenant_id: int, from_number: str) -> bool:
+    """Handles a tap on a reminder's "I'll be there" button. Returns True
+    if an appointment was actually found and confirmed - no barber
+    notification, since confirming doesn't change anything they need to
+    act on (unlike a cancellation or reschedule)."""
+    found = find_reminded_appointment(db, tenant_id, from_number)
+    if not found:
+        return False
+    _customer, appointment = found
+
+    appointment.confirmed = True
+    db.commit()
     return True

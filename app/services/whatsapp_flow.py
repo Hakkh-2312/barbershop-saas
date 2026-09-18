@@ -20,7 +20,13 @@ from app.services.notifications import notify_barber, resolve_phone_number_id
 from app.services.reminders import (
     CANCEL_BUTTON_PAYLOAD,
     CANCEL_BUTTON_TITLES,
+    CONFIRM_BUTTON_PAYLOAD,
+    CONFIRM_BUTTON_TITLES,
+    RESCHEDULE_BUTTON_PAYLOAD,
+    RESCHEDULE_BUTTON_TITLES,
     cancel_via_reminder_button,
+    confirm_via_reminder_button,
+    find_reminded_appointment,
 )
 from app.services.whatsapp_client import send_whatsapp_interactive_list, send_whatsapp_message
 from app.services.whatsapp_i18n import (
@@ -40,6 +46,20 @@ def _is_reminder_cancel_button(button_reply: dict) -> bool:
     return (
         button_reply.get("id") == CANCEL_BUTTON_PAYLOAD
         or button_reply.get("title", "").strip() in CANCEL_BUTTON_TITLES
+    )
+
+
+def _is_reminder_confirm_button(button_reply: dict) -> bool:
+    return (
+        button_reply.get("id") == CONFIRM_BUTTON_PAYLOAD
+        or button_reply.get("title", "").strip() in CONFIRM_BUTTON_TITLES
+    )
+
+
+def _is_reminder_reschedule_button(button_reply: dict) -> bool:
+    return (
+        button_reply.get("id") == RESCHEDULE_BUTTON_PAYLOAD
+        or button_reply.get("title", "").strip() in RESCHEDULE_BUTTON_TITLES
     )
 
 
@@ -96,6 +116,25 @@ def handle_message(
             cancelled = cancel_via_reminder_button(db, tenant_id, from_number)
             if cancelled:
                 _send_text(db, conversation, t(conversation.language, "appt_cancelled"))
+            return
+
+        if button_reply and _is_reminder_confirm_button(button_reply):
+            confirmed = confirm_via_reminder_button(db, tenant_id, from_number)
+            if confirmed:
+                _send_text(db, conversation, t(conversation.language, "appt_confirmed"))
+            return
+
+        if button_reply and _is_reminder_reschedule_button(button_reply):
+            found = find_reminded_appointment(db, tenant_id, from_number)
+            if found:
+                _customer, appointment = found
+                conversation.selected_appointment_id = appointment.id
+                conversation.selected_service_id = appointment.service_id
+                conversation.selected_date = None
+                conversation.state = "awaiting_date"
+                conversation.page = 0
+                db.commit()
+                _render_date_list(db, conversation)
             return
 
     if conversation.state == "awaiting_name" and message.get("type") == "text":

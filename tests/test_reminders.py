@@ -18,6 +18,41 @@ def _tomorrow_at(hour: int) -> str:
     return f"{(date.today() + timedelta(days=1)).isoformat()}T{hour:02d}:00:00"
 
 
+def _button_reply_payload(
+    button_id: str, title: str, from_number: str = "0501234567", message_id: str = "wamid.button.1"
+) -> dict:
+    return {
+        "object": "whatsapp_business_account",
+        "entry": [
+            {
+                "id": "WABA_ID",
+                "changes": [
+                    {
+                        "value": {
+                            "messaging_product": "whatsapp",
+                            "metadata": {"phone_number_id": "fake-phone-id"},
+                            "contacts": [{"profile": {"name": "Regular Customer"}}],
+                            "messages": [
+                                {
+                                    "from": from_number,
+                                    "id": message_id,
+                                    "timestamp": "1",
+                                    "type": "interactive",
+                                    "interactive": {
+                                        "type": "button_reply",
+                                        "button_reply": {"id": button_id, "title": title},
+                                    },
+                                }
+                            ],
+                        },
+                        "field": "messages",
+                    }
+                ],
+            }
+        ],
+    }
+
+
 @pytest.fixture()
 def capture_sent(monkeypatch):
     monkeypatch.setattr(settings, "whatsapp_access_token", "fake-token")
@@ -167,3 +202,87 @@ def test_cancel_button_cancels_the_reminded_appointment(
 
     appointment = db_session.query(Appointment).filter(Appointment.id == created["id"]).first()
     assert appointment.status == "cancelled"
+
+
+def test_confirm_button_marks_the_reminded_appointment_confirmed(
+    client, shop, capture_sent, db_session, monkeypatch
+):
+    from app.core.security import decode_access_token
+
+    headers, customer_id, service_id = shop
+    created = _book(client, headers, customer_id, service_id, _tomorrow_at(11)).json()
+    client.post("/api/internal/send-reminders", headers={"X-Internal-Secret": "test-secret"})
+
+    token = headers["Authorization"].split(" ", 1)[1]
+    tenant_id = decode_access_token(token)["tenant_id"]
+    monkeypatch.setattr(settings, "whatsapp_tenant_id", tenant_id)
+
+    resp = client.post(
+        "/api/whatsapp/webhook",
+        json=_button_reply_payload("CONFIRM_APPOINTMENT", "I'll be there"),
+    )
+    assert resp.status_code == 200
+
+    appointment = db_session.query(Appointment).filter(Appointment.id == created["id"]).first()
+    assert appointment.confirmed is True
+    assert appointment.status == "booked"
+
+
+def test_reschedule_button_starts_the_date_picking_flow(
+    client, shop, capture_sent, db_session, monkeypatch
+):
+    from app.core.security import decode_access_token
+    from app.models.whatsapp_conversation import WhatsappConversation
+
+    headers, customer_id, service_id = shop
+    created = _book(client, headers, customer_id, service_id, _tomorrow_at(11)).json()
+    client.post("/api/internal/send-reminders", headers={"X-Internal-Secret": "test-secret"})
+    capture_sent.clear()
+
+    token = headers["Authorization"].split(" ", 1)[1]
+    tenant_id = decode_access_token(token)["tenant_id"]
+    monkeypatch.setattr(settings, "whatsapp_tenant_id", tenant_id)
+
+    resp = client.post(
+        "/api/whatsapp/webhook",
+        json=_button_reply_payload("RESCHEDULE_APPOINTMENT", "Reschedule"),
+    )
+    assert resp.status_code == 200
+
+    # Dropped into date-picking for the specific appointment the reminder
+    # was about, same as tapping "Reschedule" from the normal menu would.
+    conversation = (
+        db_session.query(WhatsappConversation)
+        .filter(WhatsappConversation.phone_number == "0501234567")
+        .first()
+    )
+    assert conversation.state == "awaiting_date"
+    assert conversation.selected_appointment_id == created["id"]
+    assert conversation.selected_service_id == service_id
+
+    assert len(capture_sent) == 1
+    assert capture_sent[0]["type"] == "interactive"
+
+
+def test_rescheduling_resets_reminder_and_confirmation_flags(
+    client, shop, capture_sent, db_session
+):
+    headers, customer_id, service_id = shop
+    created = _book(client, headers, customer_id, service_id, _tomorrow_at(11)).json()
+    client.post("/api/internal/send-reminders", headers={"X-Internal-Secret": "test-secret"})
+    client.post(
+        "/api/whatsapp/webhook",
+        json=_button_reply_payload("CONFIRM_APPOINTMENT", "I'll be there"),
+    )
+
+    later = f"{(date.today() + timedelta(days=2)).isoformat()}T12:00:00"
+    resp = client.post(
+        f"/api/appointments/{created['id']}/reschedule",
+        headers=headers,
+        json={"start_time": later},
+    )
+    assert resp.status_code == 200
+
+    appointment = db_session.query(Appointment).filter(Appointment.id == created["id"]).first()
+    assert appointment.reminder_sent is False
+    assert appointment.confirmed is False

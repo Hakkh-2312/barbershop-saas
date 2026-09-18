@@ -159,6 +159,11 @@ def reschedule_booking(
 
     appointment.start_time = new_start_time
     appointment.end_time = end_time
+    # A reminder/confirmation from before applied to the old time - moving
+    # the appointment means it's due a fresh one, and any prior "I'll be
+    # there" no longer means anything for the new slot.
+    appointment.reminder_sent = False
+    appointment.confirmed = False
 
     try:
         db.commit()

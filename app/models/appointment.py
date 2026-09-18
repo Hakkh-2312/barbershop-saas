@@ -50,6 +50,11 @@ class Appointment(TimestampMixin, Base):
     # twice (e.g. if the daily job is retried or accidentally runs again).
     reminder_sent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    # Set when the customer taps "I'll be there" on their reminder. Reset
+    # to False on reschedule (see booking.py) - a confirmation is only
+    # meaningful for the specific time it was given for.
+    confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
     __table_args__ = (
         CheckConstraint(
             "status IN ('booked', 'cancelled', 'completed', 'no_show')",
