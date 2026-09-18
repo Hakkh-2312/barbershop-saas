@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { apiGet, apiPost, apiPatch, apiDelete, ApiError } from "@/lib/api";
 import { useLanguage } from "@/lib/i18n";
 import { Card } from "@/components/Card";
@@ -151,13 +152,13 @@ export default function CustomersPage() {
                   </>
                 ) : (
                   <>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-slate-900">{c.name}</p>
+                    <Link href={`/customers/${c.id}`} className="min-w-0 flex-1 hover:opacity-80">
+                      <p className="truncate text-sm font-medium text-indigo-700">{c.name}</p>
                       <p className="truncate text-sm text-slate-500">
                         {c.phone}
                         {c.email ? ` · ${c.email}` : ""}
                       </p>
-                    </div>
+                    </Link>
                     <div className="flex shrink-0 gap-2">
                       <Button variant="secondary" onClick={() => startEdit(c)}>
                         {t("common.edit")}

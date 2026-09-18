@@ -1,4 +1,7 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -6,12 +9,69 @@ from app.api.deps import get_current_tenant_id
 from app.db.session import get_db
 from app.models.appointment import Appointment
 from app.models.customer import Customer
-from app.schemas.customer import CustomerCreate, CustomerRead, CustomerUpdate
+from app.models.service import Service
+from app.schemas.customer import CustomerCreate, CustomerProfile, CustomerRead, CustomerUpdate
 
 router = APIRouter(
     prefix="/customers",
     tags=["customers"],
 )
+
+# "completed" is included for when appointments eventually get marked
+# complete; "no_show" and "cancelled" never count as revenue. Mirrors
+# analytics.py's REVENUE_STATUSES - keep both in sync if this changes.
+_REVENUE_STATUSES = ("booked", "completed")
+
+
+def _build_profile(db: Session, customer: Customer) -> CustomerProfile:
+    total_appointments = (
+        db.query(Appointment)
+        .filter(Appointment.customer_id == customer.id, Appointment.status != "cancelled")
+        .count()
+    )
+
+    total_spent = (
+        db.query(func.coalesce(func.sum(Service.price), 0))
+        .select_from(Appointment)
+        .join(Service, Service.id == Appointment.service_id)
+        .filter(
+            Appointment.customer_id == customer.id,
+            Appointment.status.in_(_REVENUE_STATUSES),
+        )
+        .scalar()
+    )
+
+    last_visit = (
+        db.query(func.max(Appointment.start_time))
+        .filter(
+            Appointment.customer_id == customer.id,
+            Appointment.status != "cancelled",
+            Appointment.start_time < datetime.now(),
+        )
+        .scalar()
+    )
+
+    favorite = (
+        db.query(Service.name)
+        .select_from(Appointment)
+        .join(Service, Service.id == Appointment.service_id)
+        .filter(Appointment.customer_id == customer.id, Appointment.status != "cancelled")
+        .group_by(Service.name)
+        .order_by(func.count(Appointment.id).desc())
+        .first()
+    )
+
+    return CustomerProfile(
+        id=customer.id,
+        name=customer.name,
+        phone=customer.phone,
+        email=customer.email,
+        notes=customer.notes,
+        total_appointments=total_appointments,
+        total_spent=float(total_spent or 0),
+        last_visit=last_visit,
+        favorite_service=favorite[0] if favorite else None,
+    )
 
 
 def _get_customer_or_404(db: Session, customer_id: int, tenant_id: int) -> Customer:
@@ -77,13 +137,14 @@ def list_customers(
     )
 
 
-@router.get("/{customer_id}", response_model=CustomerRead)
+@router.get("/{customer_id}", response_model=CustomerProfile)
 def get_customer(
     customer_id: int,
     db: Session = Depends(get_db),
     tenant_id: int = Depends(get_current_tenant_id),
 ):
-    return _get_customer_or_404(db, customer_id, tenant_id)
+    customer = _get_customer_or_404(db, customer_id, tenant_id)
+    return _build_profile(db, customer)
 
 
 @router.patch("/{customer_id}", response_model=CustomerRead)

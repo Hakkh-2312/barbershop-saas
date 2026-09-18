@@ -15,6 +15,14 @@ export interface Customer {
   name: string;
   phone: string;
   email: string | null;
+  notes: string | null;
+}
+
+export interface CustomerProfile extends Customer {
+  total_appointments: number;
+  total_spent: number;
+  last_visit: string | null;
+  favorite_service: string | null;
 }
 
 export interface Service {

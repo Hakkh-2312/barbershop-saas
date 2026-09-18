@@ -28,6 +28,10 @@ class Customer(TimestampMixin, Base):
         nullable=True,
     )
 
+    # Free-form, barber-editable ("low fade", "keep beard short") - shown
+    # on the customer's profile, never surfaced to the customer themselves.
+    notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+
     # "Deleting" a customer archives them instead of removing the row -
     # appointments.customer_id is ON DELETE RESTRICT (cancelled or not, the
     # row stays for history/analytics), so a real delete would always fail

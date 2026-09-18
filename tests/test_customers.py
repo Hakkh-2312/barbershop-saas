@@ -28,6 +28,65 @@ def test_customer_crud_cycle(client, auth_headers):
     assert after_delete.status_code == 404
 
 
+def test_customer_profile_includes_history_stats_and_notes(client, shop):
+    from datetime import date, timedelta
+
+    headers, customer_id, service_id = shop
+
+    # A second service so "favorite" has something to actually pick between.
+    beard = client.post(
+        "/api/services",
+        headers=headers,
+        json={"name": "Beard trim", "duration_minutes": 15, "price": 20},
+    ).json()
+
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+
+    # Two past haircuts (the favorite), one past beard trim, one cancelled
+    # haircut that shouldn't count toward anything, one still-upcoming visit.
+    client.post(
+        "/api/appointments",
+        headers=headers,
+        json={"customer_id": customer_id, "service_id": service_id, "start_time": f"{yesterday}T09:00:00"},
+    )
+    client.post(
+        "/api/appointments",
+        headers=headers,
+        json={"customer_id": customer_id, "service_id": service_id, "start_time": f"{yesterday}T10:00:00"},
+    )
+    client.post(
+        "/api/appointments",
+        headers=headers,
+        json={"customer_id": customer_id, "service_id": beard["id"], "start_time": f"{yesterday}T11:00:00"},
+    )
+    cancelled = client.post(
+        "/api/appointments",
+        headers=headers,
+        json={"customer_id": customer_id, "service_id": service_id, "start_time": f"{yesterday}T13:00:00"},
+    ).json()
+    client.post(f"/api/appointments/{cancelled['id']}/cancel", headers=headers)
+    client.post(
+        "/api/appointments",
+        headers=headers,
+        json={"customer_id": customer_id, "service_id": service_id, "start_time": f"{tomorrow}T09:00:00"},
+    )
+
+    client.patch(f"/api/customers/{customer_id}", headers=headers, json={"notes": "Low fade"})
+
+    resp = client.get(f"/api/customers/{customer_id}", headers=headers)
+    assert resp.status_code == 200
+    profile = resp.json()
+
+    assert profile["notes"] == "Low fade"
+    # 4 non-cancelled appointments: 2 haircuts + 1 beard trim in the past,
+    # plus the 1 still-upcoming haircut. The cancelled one doesn't count.
+    assert profile["total_appointments"] == 4
+    assert profile["total_spent"] == 50 * 3 + 20  # 3 haircuts + 1 beard trim
+    assert profile["last_visit"].startswith(yesterday)
+    assert profile["favorite_service"] == "Haircut"
+
+
 def test_get_unknown_customer_returns_404(client, auth_headers):
     headers = auth_headers()
     resp = client.get("/api/customers/999999", headers=headers)
